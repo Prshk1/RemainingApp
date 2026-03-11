@@ -6,7 +6,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import { AppSettingsProvider } from "./context/AppSettingsContext";
+import { NotificationStack } from "./components/NotificationStack";
 import { TimerProvider } from "./context/TimerContext";
 import { AttendanceProvider } from "./context/AttendanceContext";
 import { BonusProvider } from "./context/BonusContext";
@@ -127,11 +129,14 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <NavigationContainer>
-            <AppNavigator />
-          </NavigationContainer>
-        </AuthProvider>
+        <NotificationProvider>
+          <AuthProvider>
+            <NavigationContainer>
+              <AppNavigator />
+            </NavigationContainer>
+            <NotificationStack />
+          </AuthProvider>
+        </NotificationProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

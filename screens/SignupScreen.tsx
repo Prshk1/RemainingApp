@@ -9,13 +9,13 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { useNotification } from "../context/NotificationContext";
 import { RootStackParamList } from "../App";
 
 type Props = {
@@ -26,6 +26,7 @@ export default function SignupScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { signUpWithEmail } = useAuth();
+  const { showNotification } = useNotification();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -38,28 +39,47 @@ export default function SignupScreen({ navigation }: Props) {
 
   const handleSignUp = async () => {
     if (!fullName.trim() || !email.trim() || !password) {
-      Alert.alert("Missing fields", "Please fill in all fields.");
+      showNotification({
+        type: "error",
+        title: "Missing fields",
+        message: "Please fill in all fields.",
+      });
       return;
     }
     if (password.length < 8) {
-      Alert.alert("Weak password", "Password must be at least 8 characters.");
+      showNotification({
+        type: "error",
+        title: "Weak password",
+        message: "Password must be at least 8 characters.",
+      });
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert("Password mismatch", "Passwords do not match.");
+      showNotification({
+        type: "error",
+        title: "Password mismatch",
+        message: "Passwords do not match.",
+      });
       return;
     }
     setLoading(true);
     const { error } = await signUpWithEmail(email, password, fullName);
     setLoading(false);
     if (error) {
-      Alert.alert("Sign-up failed", error);
+      showNotification({
+        type: "error",
+        title: "Sign-up failed",
+        message: error,
+      });
     } else {
-      Alert.alert(
-        "Check your email",
-        "A verification link has been sent. Verify your email then sign in.",
-        [{ text: "OK", onPress: () => navigation.navigate("Login") }]
-      );
+      showNotification({
+        type: "success",
+        title: "Check your email",
+        message: "A verification link has been sent. Verify your email then sign in.",
+      });
+      setTimeout(() => {
+        navigation.navigate("Login");
+      }, 2000);
     }
   };
 

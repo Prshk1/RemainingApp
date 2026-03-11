@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../services/supabase/client";
+import { useNotification } from "./NotificationContext";
+
+// ⚠️ UPDATE THIS WITH YOUR NETLIFY DOMAIN
+// 1. Deploy the supabase-redirect folder to Netlify
+// 2. Replace with your Netlify domain: https://remaining-auth.netlify.app
+// 3. Supabase will redirect email verification links to this URL
+const EMAIL_REDIRECT_URL = "https://remaining-auth.netlify.app";
 
 interface AuthContextValue {
   session: Session | null;
@@ -30,6 +37,7 @@ const AuthContext = createContext<AuthContextValue>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { showNotification } = useNotification();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -61,7 +69,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { data: { full_name: fullName.trim() } },
+      options: {
+        data: { full_name: fullName.trim() },
+        emailRedirectTo: EMAIL_REDIRECT_URL,
+      },
     });
     return { error: error?.message ?? null };
   };

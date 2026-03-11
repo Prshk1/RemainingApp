@@ -9,13 +9,13 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { useNotification } from "../context/NotificationContext";
 import { RootStackParamList } from "../App";
 
 type Props = {
@@ -26,6 +26,7 @@ export default function LoginScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { signInWithEmail } = useAuth();
+  const { showNotification } = useNotification();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,14 +37,22 @@ export default function LoginScreen({ navigation }: Props) {
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
-      Alert.alert("Missing fields", "Please enter your email and password.");
+      showNotification({
+        type: "error",
+        title: "Missing fields",
+        message: "Please enter your email and password.",
+      });
       return;
     }
     setLoading(true);
     const { error } = await signInWithEmail(email, password);
     setLoading(false);
     if (error) {
-      Alert.alert("Login failed", error);
+      showNotification({
+        type: "error",
+        title: "Login failed",
+        message: error,
+      });
     }
   };
 
