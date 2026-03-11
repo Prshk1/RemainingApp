@@ -24,7 +24,7 @@ export default function AttendanceCard({
 }: AttendanceCardProps) {
   const { colors } = useTheme();
   return (
-    <TouchableOpacity style={[styles.card, { backgroundColor: colors.card }]} onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity style={[styles.card, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]} onPress={onPress} activeOpacity={0.75}>
       <View style={[styles.iconBox, { backgroundColor: colors.cardAlt }]}>
         <Ionicons name="calendar" size={20} color={colors.primary} />
       </View>

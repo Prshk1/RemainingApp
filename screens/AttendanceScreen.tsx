@@ -104,7 +104,7 @@ export default function AttendanceScreen() {
       />
 
       <TouchableOpacity
-        style={[styles.fab, { bottom: insets.bottom + 20, backgroundColor: colors.primary }]}
+        style={[styles.fab, { bottom: insets.bottom + TAB_BAR_HEIGHT + 12, backgroundColor: colors.primary }]}
         activeOpacity={0.85}
         onPress={() => navigation.navigate("ManualEntry")}
       >

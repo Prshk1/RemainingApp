@@ -51,7 +51,7 @@ function estimateCompletion(
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const navigation = useNavigation<NavProp>();
   const { timerState, startTime, displayHours, displayMins, displaySecs, timeIn, timeOut, startBreak, endBreak } = useTimer();
   const { totalHours } = useAttendance();
@@ -107,7 +107,7 @@ export default function DashboardScreen() {
       </View>
 
       {/* Timer Card */}
-      <View style={[styles.timerCard, { backgroundColor: colors.card }]}>
+      <View style={[styles.timerCard, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}>
         <View style={styles.timerHeader}>
           <View style={styles.timerHeaderLeft}>
             <View style={[styles.activeDot, { backgroundColor: isRunning ? colors.green : isBreak ? colors.orange : colors.textMuted }]} />
@@ -130,10 +130,10 @@ export default function DashboardScreen() {
             { val: displaySecs, unit: "SECS", accent: true },
           ].map(({ val, unit, accent }) => (
             <View key={unit} style={[styles.timerBox, { backgroundColor: colors.timerBox }]}>
-              <Text style={[styles.timerNumber, accent && { color: colors.primary }]}>
+              <Text style={[styles.timerNumber, { color: colors.text }, accent && { color: colors.primary }]}>
                 {pad(val)}
               </Text>
-              <Text style={[styles.timerUnit, accent && { color: colors.primary }]}>{unit}</Text>
+              <Text style={[styles.timerUnit, { color: colors.textMuted }, accent && { color: colors.primary }]}>{unit}</Text>
             </View>
           ))}
         </View>
@@ -186,11 +186,11 @@ export default function DashboardScreen() {
 
       {/* Summary Cards */}
       <View style={[styles.summaryRow, { marginTop: 20 }]}>
-        <View style={[styles.summaryCard, { backgroundColor: colors.card }]}>
+        <View style={[styles.summaryCard, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}>
           <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Hours Logged</Text>
           <Text style={[styles.summaryValue, { color: colors.primary }]}>{totalHours.toFixed(1)}</Text>
         </View>
-        <View style={[styles.summaryCard, { backgroundColor: colors.card }]}>
+        <View style={[styles.summaryCard, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}>
           <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Bonus Hours</Text>
           <Text style={[styles.summaryValue, { color: colors.orange }]}>{totalApprovedHours.toFixed(1)}</Text>
         </View>
@@ -221,8 +221,8 @@ const styles = StyleSheet.create({
   timerStartedAt: { fontSize: 12 },
   timerBoxRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
   timerBox: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: "center" },
-  timerNumber: { fontSize: 26, fontWeight: "800", marginBottom: 4, color: "#fff" },
-  timerUnit: { color: "#aaa", fontSize: 10, letterSpacing: 1, fontWeight: "600" },
+  timerNumber: { fontSize: 26, fontWeight: "800", marginBottom: 4 },
+  timerUnit: { fontSize: 10, letterSpacing: 1, fontWeight: "600" },
   timeInBtn: { borderRadius: 12, height: 48, flexDirection: "row", justifyContent: "center", alignItems: "center" },
   timeInBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   timerActions: { flexDirection: "row", gap: 12 },

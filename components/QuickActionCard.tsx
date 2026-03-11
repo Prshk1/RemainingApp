@@ -18,7 +18,7 @@ export default function QuickActionCard({
   const { colors } = useTheme();
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.card }]}
+      style={[styles.card, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
       onPress={onPress}
       activeOpacity={0.75}
     >

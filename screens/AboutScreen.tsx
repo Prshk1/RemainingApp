@@ -55,7 +55,7 @@ export default function AboutScreen() {
           />
           <Text style={[styles.appName, { color: colors.text }]}>Remaining</Text>
           <Text style={[styles.appTagline, { color: colors.textSecondary }]}>
-            Track your internship hours, goals, and journal — all offline.
+            Track your internship hours, goals, and journal.
           </Text>
         </View>
 

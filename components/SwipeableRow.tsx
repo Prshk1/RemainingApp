@@ -17,6 +17,7 @@ import {
   Animated,
   GestureResponderEvent,
   PanResponderGestureState,
+  Text,
   TouchableOpacity,
   View,
   StyleSheet,
@@ -26,7 +27,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { motion } from "../theme/motion";
 
-const ACTION_WIDTH = 76;
+const ACTION_WIDTH = 92;
 
 interface SwipeableRowProps {
   children: React.ReactNode;
@@ -104,7 +105,8 @@ export default function SwipeableRow({ children, onEdit, onDelete }: SwipeableRo
             onPress={() => { close(); setTimeout(leftAction, 200); }}
             activeOpacity={0.85}
           >
-            <Ionicons name={leftIcon} size={22} color="#fff" />
+            <Ionicons name={leftIcon} size={24} color="#fff" />
+            <Text style={styles.actionLabel}>{leftIcon === "create-outline" ? "Edit" : "Delete"}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -117,7 +119,8 @@ export default function SwipeableRow({ children, onEdit, onDelete }: SwipeableRo
             onPress={() => { close(); setTimeout(rightAction, 100); }}
             activeOpacity={0.85}
           >
-            <Ionicons name={rightIcon} size={22} color="#fff" />
+            <Ionicons name={rightIcon} size={24} color="#fff" />
+            <Text style={styles.actionLabel}>{rightIcon === "create-outline" ? "Edit" : "Delete"}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -160,6 +163,13 @@ const styles = StyleSheet.create({
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
+    gap: 4,
+  },
+  actionLabel: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   row: {
     width: "100%",
