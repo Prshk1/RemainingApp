@@ -52,49 +52,69 @@ export default function JournalScreen() {
 
   async function pickImage() {
     if (attachments.length >= MAX_ATTACHMENTS) {
-      // Using native alert for system-level limit; considered acceptable
       const { Alert } = await import("react-native");
       Alert.alert("Limit reached", `You can attach up to ${MAX_ATTACHMENTS} photos per entry.`);
       return;
     }
 
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
+    if (!entry) {
       const { Alert } = await import("react-native");
-      Alert.alert("Permission required", "Please allow access to your photo library in Settings.");
+      Alert.alert("Error", "No attendance entry found. Please try again.");
+      return;
+    }
+    if (!user) {
+      const { Alert } = await import("react-native");
+      Alert.alert("Sign-in required", "Please sign in to attach photos.");
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.85,
-      allowsEditing: false,
-    });
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        const { Alert } = await import("react-native");
+        Alert.alert("Permission required", "Please allow access to your photo library in Settings.");
+        return;
+      }
 
-    if (result.canceled || !result.assets.length) return;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.85,
+        allowsEditing: false,
+      });
 
-    const asset = result.assets[0];
-    if (!entry || !user) return;
+      if (result.canceled || !result.assets || !result.assets.length) return;
 
-    // Copy from the ephemeral ImagePicker cache into persistent app storage
-    // so the URI remains valid after app restarts or cache clears.
-    const id = generateId();
-    const ext = asset.fileName?.split(".").pop() ?? "jpg";
-    const destDir = `${FileSystem.documentDirectory}attachments/`;
-    await FileSystem.makeDirectoryAsync(destDir, { intermediates: true });
-    const destUri = `${destDir}${id}.${ext}`;
-    await FileSystem.copyAsync({ from: asset.uri, to: destUri });
+      const asset = result.assets[0];
+      if (!asset.uri) return;
 
-    const newAttachment: Omit<AttachmentRow, "created_at" | "synced" | "deleted"> = {
-      id,
-      entry_id: entry.id,
-      user_id: user.id,
-      file_uri: destUri,
-      remote_path: null,
-      display_name: asset.fileName ?? null,
-    };
-    insertAttachment(newAttachment);
-    setAttachments(getAttachmentsByEntryId(entry.id));
+      // Copy from ephemeral ImagePicker cache into persistent app storage
+      const id = generateId();
+      const rawExt = asset.fileName?.split(".").pop()?.toLowerCase() ?? "jpg";
+      const ext = /^(jpg|jpeg|png|gif|webp|heic|heif)$/.test(rawExt) ? rawExt : "jpg";
+      const destDir = `${FileSystem.documentDirectory}attachments/`;
+      await FileSystem.makeDirectoryAsync(destDir, { intermediates: true });
+      const destUri = `${destDir}${id}.${ext}`;
+      await FileSystem.copyAsync({ from: asset.uri, to: destUri });
+
+      // Verify the file actually exists after copy before writing to DB
+      const info = await FileSystem.getInfoAsync(destUri);
+      if (!info.exists) throw new Error("File copy failed — destination not found.");
+
+      const newAttachment: Omit<AttachmentRow, "created_at" | "synced" | "deleted"> = {
+        id,
+        entry_id: entry.id,
+        user_id: user.id,
+        file_uri: destUri,
+        remote_path: null,
+        display_name: asset.fileName ?? null,
+      };
+      insertAttachment(newAttachment);
+      // Refresh from DB to confirm insertion, then update local state
+      setAttachments(getAttachmentsByEntryId(entry.id));
+    } catch (err: any) {
+      const { Alert } = await import("react-native");
+      Alert.alert("Could not add photo", err?.message ?? "An unexpected error occurred. Please try again.");
+    }
   }
 
   function removeAttachment(id: string) {

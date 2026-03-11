@@ -23,7 +23,7 @@ export default function BonusItem({ iconName = "star", title, date, status, hour
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
       onPress={onPress}
-      activeOpacity={onPress ? 0.75 : 1}
+      activeOpacity={onPress ? 1 : 1}
     >
       <View style={[styles.iconCircle, { backgroundColor: circBg }]}>
         <Ionicons name={iconName} size={20} color={iconColor} />

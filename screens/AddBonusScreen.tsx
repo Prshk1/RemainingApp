@@ -17,12 +17,29 @@ import { useTheme } from "../context/ThemeContext";
 import { useBonus, BonusEntry } from "../context/BonusContext";
 import Header from "../components/Header";
 import ConfirmModal from "../components/ConfirmModal";
-import InputModal from "../components/InputModal";
+import PickerModal from "../components/PickerModal";
 import { getBonusById } from "../services/database/repositories/bonus";
 import { RootStackParamList } from "../App";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "AddBonus">;
 type RoutePropType = RouteProp<RootStackParamList, "AddBonus">;
+
+function pad(n: number) { return String(n).padStart(2, "0"); }
+
+/** Convert decimal hours to "HH:MM" (with 15-min rounding for duration picker). */
+function decimalToHHMM(dec: number): string {
+  const h = Math.floor(dec);
+  // Round minutes to nearest 15
+  const rawMin = Math.round((dec - h) * 60);
+  const min = Math.round(rawMin / 15) * 15;
+  return `${pad(h)}:${pad(min >= 60 ? 0 : min)}`;
+}
+
+/** Convert "HH:MM" string to decimal hours. */
+function hhmmToDecimal(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return parseFloat((h + m / 60).toFixed(2));
+}
 
 export default function AddBonusScreen() {
   const insets = useSafeAreaInsets();
@@ -38,10 +55,13 @@ export default function AddBonusScreen() {
   const [date, setDate] = useState(
     new Date().toISOString().split("T")[0]
   );
-  const [hours, setHours] = useState("");
+  // Duration stored as "HH:MM" for the picker; converted to decimal on save
+  const [duration, setDuration] = useState("01:00");
   const [note, setNote] = useState("");
   const [deleteVisible, setDeleteVisible] = useState(false);
   const [errorModal, setErrorModal] = useState<{ title: string; msg: string } | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showDurationPicker, setShowDurationPicker] = useState(false);
 
   useEffect(() => {
     if (editId) {
@@ -49,7 +69,7 @@ export default function AddBonusScreen() {
       if (row) {
         setTitle(row.title);
         setDate(row.date);
-        setHours(String(row.hours));
+        setDuration(decimalToHHMM(row.hours));
         setNote(row.note ?? "");
       }
     }
@@ -58,17 +78,13 @@ export default function AddBonusScreen() {
   const styles = makeStyles(colors, insets);
 
   const handleSave = async () => {
-    const parsedHours = parseFloat(hours);
+    const parsedHours = hhmmToDecimal(duration);
     if (!title.trim()) {
       setErrorModal({ title: "Missing title", msg: "Please enter what this bonus is for." });
       return;
     }
-    if (!date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      setErrorModal({ title: "Invalid date", msg: "Use YYYY-MM-DD format (e.g. 2026-03-11)." });
-      return;
-    }
-    if (isNaN(parsedHours) || parsedHours <= 0) {
-      setErrorModal({ title: "Invalid hours", msg: "Enter a positive number of hours." });
+    if (parsedHours <= 0) {
+      setErrorModal({ title: "Invalid duration", msg: "Please select a duration greater than 0." });
       return;
     }
 
@@ -125,24 +141,31 @@ export default function AddBonusScreen() {
             onChangeText={setTitle}
           />
 
-          <Text style={styles.label}>Date (YYYY-MM-DD)</Text>
-          <TextInput
-            style={styles.inputBox}
-            placeholder="2026-03-11"
-            placeholderTextColor={colors.textMuted}
-            value={date}
-            onChangeText={setDate}
-          />
+          <Text style={styles.label}>Date</Text>
+          <TouchableOpacity
+            style={[styles.inputBox, styles.pickerRow]}
+            onPress={() => setShowDatePicker(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.pickerValue, { color: colors.text }]}>{date}</Text>
+            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+          </TouchableOpacity>
 
-          <Text style={styles.label}>Hours Earned</Text>
-          <TextInput
-            style={styles.inputBox}
-            placeholder="e.g. 4.0"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="decimal-pad"
-            value={hours}
-            onChangeText={setHours}
-          />
+          <Text style={styles.label}>Duration (Hours Earned)</Text>
+          <TouchableOpacity
+            style={[styles.inputBox, styles.pickerRow]}
+            onPress={() => setShowDurationPicker(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.pickerValue, { color: colors.text }]}>
+              {(() => {
+                const [h, m] = duration.split(":").map(Number);
+                const dec = parseFloat((h + m / 60).toFixed(2));
+                return m === 0 ? `${h}h (${dec} hrs)` : `${h}h ${m}m (${dec} hrs)`;
+              })()}
+            </Text>
+            <Ionicons name="hourglass-outline" size={18} color={colors.primary} />
+          </TouchableOpacity>
 
           <Text style={styles.label}>Note (optional)</Text>
           <TextInput
@@ -195,6 +218,21 @@ export default function AddBonusScreen() {
           onConfirm={() => setErrorModal(null)}
           onCancel={() => setErrorModal(null)}
         />
+        <PickerModal
+          visible={showDatePicker}
+          mode="date"
+          value={date}
+          onConfirm={(v) => { setDate(v); setShowDatePicker(false); }}
+          onCancel={() => setShowDatePicker(false)}
+        />
+        <PickerModal
+          visible={showDurationPicker}
+          mode="duration"
+          value={duration}
+          title="Select Duration"
+          onConfirm={(v) => { setDuration(v); setShowDurationPicker(false); }}
+          onCancel={() => setShowDurationPicker(false)}
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -218,6 +256,12 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"], insets: { top
       color: colors.text, fontSize: 16,
       borderWidth: 1, borderColor: colors.border,
     },
+    pickerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    pickerValue: { fontSize: 15, fontWeight: "500" },
     textArea: { height: 110, paddingTop: 14 },
     infoCard: {
       flexDirection: "row", alignItems: "flex-start",

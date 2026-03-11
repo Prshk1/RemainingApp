@@ -130,7 +130,9 @@ export default function SwipeableRow({ children, onEdit, onDelete }: SwipeableRo
         style={[styles.row, { transform: [{ translateX }] }]}
         {...panResponder.panHandlers}
       >
-        {children}
+        <View style={styles.rowMask}>
+          {children}
+        </View>
       </Animated.View>
     </View>
   );
@@ -173,6 +175,10 @@ const styles = StyleSheet.create({
   },
   row: {
     width: "100%",
+  },
+  rowMask: {
+    borderRadius: 14,
+    overflow: "hidden",
   },
 });
 

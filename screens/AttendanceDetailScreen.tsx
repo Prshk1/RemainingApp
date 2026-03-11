@@ -103,11 +103,16 @@ export default function AttendanceDetailScreen() {
     }
     try {
       const available = await Sharing.isAvailableAsync();
-      if (available) {
-        await Sharing.shareAsync(uri, { mimeType: "image/jpeg" });
+      if (!available) {
+        showToast("Sharing is not available on this device.", false);
+        return;
       }
+      // Determine MIME type from file extension
+      const ext = uri.split(".").pop()?.toLowerCase() ?? "jpg";
+      const mimeType = ext === "png" ? "image/png" : ext === "gif" ? "image/gif" : "image/jpeg";
+      await Sharing.shareAsync(uri, { mimeType });
     } catch {
-      // user cancelled — no-op
+      // User cancelled share sheet — no-op
     }
   }
 
