@@ -1,214 +1,149 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-} from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import Header from "../components/Header";
-import { colors } from "../theme/colors";
-import { attendanceDetail } from "../data/placeholders";
-import { AttendanceStackParamList } from "../navigation/BottomTabs";
+import { useTheme } from "../context/ThemeContext";
+import { useAttendance } from "../context/AttendanceContext";
+import { useAppSettings } from "../context/AppSettingsContext";
+import { RootStackParamList } from "../App";
 
-type Props = {
-  navigation: NativeStackNavigationProp<AttendanceStackParamList, "AttendanceDetail">;
-};
+type NavProp = NativeStackNavigationProp<RootStackParamList>;
+type RoutePropType = RouteProp<RootStackParamList, "AttendanceDetail">;
 
-/**
- * Attendance Details screen — matches Figma attendance detail design.
- * Large date, time in/out/total/entry-type card, journal preview, action buttons.
- */
-export default function AttendanceDetailScreen({ navigation }: Props) {
+export default function AttendanceDetailScreen() {
   const insets = useSafeAreaInsets();
-  const d = attendanceDetail;
+  const { colors } = useTheme();
+  const navigation = useNavigation<NavProp>();
+  const route = useRoute<RoutePropType>();
+  const { entries, deleteEntry } = useAttendance();
+  const { settings } = useAppSettings();
+
+  const entry = entries.find((e) => e.id === route.params.entryId);
+
+  function handleDelete() {
+    Alert.alert("Delete Entry", "Are you sure you want to delete this entry?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          if (entry) { await deleteEntry(entry.id); navigation.goBack(); }
+        },
+      },
+    ]);
+  }
+
+  if (!entry) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.backgroundAlt, paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={26} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.notFound, { color: colors.textSecondary }]}>Entry not found</Text>
+      </View>
+    );
+  }
+
+  function fmtTime(iso: string | null): string {
+    if (!iso) return "--";
+    return new Date(iso).toLocaleTimeString("en-US", { hour12: settings.timeFormat === "12h", hour: "2-digit", minute: "2-digit" });
+  }
+
+  const dataRows = [
+    { label: "Date", value: new Date(entry.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) },
+    { label: "Time In", value: fmtTime(entry.timeIn) },
+    { label: "Time Out", value: fmtTime(entry.timeOut) },
+    { label: "Break", value: `${entry.breakMinutes} min` },
+    { label: "Total Hours", value: entry.hours != null ? `${entry.hours.toFixed(2)} hrs` : "--" },
+    { label: "Type", value: entry.isManual ? "Manual Entry" : "Timer" },
+  ];
 
   return (
-    // Header handles its own safe-area top padding
-    <View style={styles.container}>
-      <Header
-        title="Attendance Details"
-        onBack={() => navigation.goBack()}
-      />
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt, paddingTop: insets.top + 8 }]}>
+      <View style={styles.navbar}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="chevron-back" size={26} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.navTitle, { color: colors.text }]}>Attendance Detail</Text>
+        <TouchableOpacity onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="trash-outline" size={22} color={colors.red} />
+        </TouchableOpacity>
+      </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Large date heading */}
-        <Text style={styles.dateHeading}>{d.date}</Text>
-
-        {/* Detail card */}
-        <View style={styles.detailCard}>
-          <DetailRow label="Time In" value={d.timeIn} />
-          <View style={styles.divider} />
-          <DetailRow label="Time Out" value={d.timeOut} />
-          <View style={styles.divider} />
-          <DetailRow label="Total Hours" value={`${d.totalHours} hrs`} valueStyle={styles.hoursValue} />
-          <View style={styles.divider} />
-          <DetailRow
-            label="Entry Type"
-            value={d.entryType}
-            valueBadge
-          />
+      <ScrollView contentContainerStyle={[styles.inner, { paddingBottom: insets.bottom + 80 }]} showsVerticalScrollIndicator={false}>
+        <View style={styles.hoursBadgeWrap}>
+          <View style={[styles.hoursBadge, { backgroundColor: colors.primaryDim }]}>
+            <Text style={[styles.hoursBadgeText, { color: colors.primary }]}>
+              {entry.hours != null ? `${entry.hours.toFixed(1)} hrs` : "--"}
+            </Text>
+          </View>
+          {entry.isManual ? (
+            <View style={[styles.typeBadge, { backgroundColor: colors.timerBox }]}>
+              <Text style={[styles.typeBadgeText, { color: colors.textSecondary }]}>Manual</Text>
+            </View>
+          ) : null}
         </View>
 
-        {/* Journal Preview */}
-        <View style={styles.journalHeader}>
-          <Text style={styles.journalTitle}>Journal Preview</Text>
-          <Ionicons name="create-outline" size={18} color={colors.textSecondary} />
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          {dataRows.map(({ label, value }, i) => (
+            <View
+              key={label}
+              style={[
+                styles.dataRow,
+                i < dataRows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator },
+              ]}
+            >
+              <Text style={[styles.dataLabel, { color: colors.textSecondary }]}>{label}</Text>
+              <Text style={[styles.dataValue, { color: colors.text }]}>{value}</Text>
+            </View>
+          ))}
         </View>
-        <View style={styles.journalBox}>
-          <Text style={styles.journalText}>{d.journalPreview}</Text>
-        </View>
+
+        {entry.note ? (
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.noteLabel, { color: colors.textSecondary }]}>Note</Text>
+            <Text style={[styles.noteText, { color: colors.text }]}>{entry.note}</Text>
+          </View>
+        ) : null}
       </ScrollView>
 
-      {/* Bottom action buttons */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <View style={styles.mainActions}>
-          <TouchableOpacity style={styles.editBtn}>
-            <Ionicons name="pencil" size={16} color={colors.text} style={{ marginRight: 6 }} />
-            <Text style={styles.editBtnText}>Edit Entry</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.journalBtn}
-            onPress={() => navigation.navigate("Journal")}
-          >
-            <Ionicons name="book-outline" size={16} color={colors.text} style={{ marginRight: 6 }} />
-            <Text style={styles.journalBtnText}>Journal</Text>
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity style={styles.deleteBtn}>
-          <Ionicons name="trash-outline" size={16} color={colors.red} style={{ marginRight: 8 }} />
-          <Text style={styles.deleteBtnText}>Delete Entry</Text>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 12, borderTopColor: colors.separator }]}>
+        <TouchableOpacity
+          style={[styles.journalBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => navigation.navigate("Journal", { entryId: entry.id })}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="journal-outline" size={20} color={colors.primary} style={{ marginRight: 8 }} />
+          <Text style={[styles.journalBtnText, { color: colors.primary }]}>
+            {entry.note ? "Edit Journal Note" : "Add Journal Note"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-function DetailRow({
-  label,
-  value,
-  valueStyle,
-  valueBadge,
-}: {
-  label: string;
-  value: string;
-  valueStyle?: object;
-  valueBadge?: boolean;
-}) {
-  return (
-    <View style={detailStyles.row}>
-      <Text style={detailStyles.label}>{label}</Text>
-      {valueBadge ? (
-        <View style={detailStyles.badge}>
-          <Text style={detailStyles.badgeText}>{value}</Text>
-        </View>
-      ) : (
-        <Text style={[detailStyles.value, valueStyle]}>{value}</Text>
-      )}
-    </View>
-  );
-}
-
-const detailStyles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-  },
-  label: { color: colors.textSecondary, fontSize: 14 },
-  value: { color: colors.text, fontSize: 15, fontWeight: "700" },
-  badge: {
-    backgroundColor: colors.cardAlt,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  badgeText: { color: colors.text, fontSize: 13, fontWeight: "500" },
-});
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 20, paddingBottom: 20 },
-
-  dateHeading: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: "800",
-    marginBottom: 20,
-    marginTop: 8,
-  },
-  detailCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    marginBottom: 28,
-    overflow: "hidden",
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.separator,
-    marginHorizontal: 18,
-  },
-  hoursValue: { color: colors.primary },
-
-  journalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  journalTitle: { color: colors.text, fontSize: 18, fontWeight: "700" },
-  journalBox: {
-    backgroundColor: colors.primaryDim,
-    borderRadius: 14,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  journalText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontStyle: "italic",
-    lineHeight: 22,
-  },
-
-  footer: { paddingHorizontal: 20, paddingTop: 12 },
-  mainActions: { flexDirection: "row", gap: 12, marginBottom: 12 },
-  editBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.timerBox,
-    borderRadius: 14,
-    paddingVertical: 16,
-  },
-  editBtnText: { color: colors.text, fontSize: 15, fontWeight: "700" },
-  journalBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
-  },
-  journalBtnText: { color: colors.text, fontSize: 15, fontWeight: "700" },
-  deleteBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: colors.red,
-    borderRadius: 14,
-    paddingVertical: 16,
-  },
-  deleteBtnText: { color: colors.red, fontSize: 15, fontWeight: "700" },
+  container: { flex: 1 },
+  backBtn: { paddingHorizontal: 16, paddingVertical: 8 },
+  notFound: { textAlign: "center", marginTop: 40, fontSize: 16 },
+  navbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, marginBottom: 8 },
+  navTitle: { fontSize: 17, fontWeight: "700" },
+  inner: { paddingHorizontal: 16 },
+  hoursBadgeWrap: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20 },
+  hoursBadge: { borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8 },
+  hoursBadgeText: { fontSize: 20, fontWeight: "800" },
+  typeBadge: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
+  typeBadgeText: { fontSize: 13, fontWeight: "600" },
+  card: { borderRadius: 16, overflow: "hidden", marginBottom: 16 },
+  dataRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14 },
+  dataLabel: { fontSize: 14 },
+  dataValue: { fontSize: 14, fontWeight: "600" },
+  noteLabel: { fontSize: 12, fontWeight: "600", marginBottom: 4, paddingHorizontal: 16, paddingTop: 12 },
+  noteText: { fontSize: 14, lineHeight: 22, paddingHorizontal: 16, paddingBottom: 16 },
+  footer: { paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1 },
+  journalBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderRadius: 14, height: 52, borderWidth: 1 },
+  journalBtnText: { fontSize: 15, fontWeight: "700" },
 });

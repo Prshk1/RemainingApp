@@ -1,106 +1,79 @@
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
+  View, Text, TextInput, TouchableOpacity, ScrollView,
+  StyleSheet, KeyboardAvoidingView, Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import Header from "../components/Header";
-import { colors } from "../theme/colors";
-import { AttendanceStackParamList } from "../navigation/BottomTabs";
+import { useTheme } from "../context/ThemeContext";
+import { useAttendance } from "../context/AttendanceContext";
+import { RootStackParamList } from "../App";
 
-type Props = {
-  navigation: NativeStackNavigationProp<AttendanceStackParamList, "Journal">;
-};
+type NavProp = NativeStackNavigationProp<RootStackParamList>;
+type RoutePropType = RouteProp<RootStackParamList, "Journal">;
 
-const { width } = Dimensions.get("window");
-const THUMB_SIZE = (width - 56) / 3;
-
-// Placeholder attachment thumbnails — solid color placeholders
-const PLACEHOLDER_THUMBS = [colors.card, colors.cardAlt];
-
-/**
- * Edit Journal screen — matches Figma journal edit design.
- * Date input, multiline journal textarea, image attachment section, save button.
- */
-export default function JournalScreen({ navigation }: Props) {
+export default function JournalScreen() {
   const insets = useSafeAreaInsets();
-  const [date, setDate] = useState("10/24/2023");
-  const [entry, setEntry] = useState("");
+  const { colors } = useTheme();
+  const navigation = useNavigation<NavProp>();
+  const route = useRoute<RoutePropType>();
+  const { entries, updateEntry } = useAttendance();
+  const entry = entries.find((e) => e.id === route.params.entryId);
+  const [note, setNote] = useState(entry?.note ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    if (!entry) return;
+    setSaving(true);
+    try {
+      await updateEntry(entry.id, { note: note.trim() || null });
+      navigation.goBack();
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      // Header handles its own safe-area top padding
-      <View style={styles.container}>
-        <Header title="Edit Journal" onBack={() => navigation.goBack()} />
-
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Date field */}
-          <Text style={styles.fieldLabel}>Date</Text>
-          <View style={styles.inputBox}>
-            <TextInput
-              style={styles.input}
-              value={date}
-              onChangeText={setDate}
-              placeholderTextColor={colors.textMuted}
-            />
-          </View>
-
-          {/* Journal Entry textarea */}
-          <Text style={styles.fieldLabel}>Journal Entry</Text>
-          <View style={styles.textAreaBox}>
-            <TextInput
-              style={styles.textArea}
-              multiline
-              numberOfLines={8}
-              textAlignVertical="top"
-              placeholder="Write down your tasks, learnings, and experiences today..."
-              placeholderTextColor={colors.textMuted}
-              value={entry}
-              onChangeText={setEntry}
-            />
-          </View>
-
-          {/* Attachments */}
-          <Text style={styles.sectionTitle}>Attachments</Text>
-
-          {/* Dashed upload zone */}
-          <TouchableOpacity style={styles.uploadZone} activeOpacity={0.7}>
-            <View style={styles.uploadIconCircle}>
-              <Ionicons name="image-outline" size={22} color={colors.primary} />
-            </View>
-            <Text style={styles.uploadTitle}>Add Image</Text>
-            <Text style={styles.uploadSub}>Tap to upload photos</Text>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <View style={[styles.container, { backgroundColor: colors.backgroundAlt, paddingTop: insets.top + 8 }]}>
+        <View style={styles.navbar}>
+          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="chevron-back" size={26} color={colors.text} />
           </TouchableOpacity>
+          <Text style={[styles.navTitle, { color: colors.text }]}>Journal Note</Text>
+          <View style={{ width: 26 }} />
+        </View>
 
-          {/* Thumbnail grid (placeholder colored boxes) */}
-          <View style={styles.thumbRow}>
-            {PLACEHOLDER_THUMBS.map((bg, i) => (
-              <View key={i} style={[styles.thumb, { backgroundColor: bg }]} />
-            ))}
+        <ScrollView contentContainerStyle={[styles.inner, { paddingBottom: insets.bottom + 20 }]} showsVerticalScrollIndicator={false}>
+          {entry && (
+            <Text style={[styles.dateLine, { color: colors.textSecondary }]}>
+              {new Date(entry.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+            </Text>
+          )}
+          <View style={[styles.noteCard, { backgroundColor: colors.card }]}>
+            <TextInput
+              style={[styles.noteInput, { color: colors.text }]}
+              value={note}
+              onChangeText={setNote}
+              placeholder="Write your journal note here..."
+              placeholderTextColor={colors.textMuted}
+              multiline
+              textAlignVertical="top"
+              autoFocus
+            />
           </View>
         </ScrollView>
 
-        {/* Save Entry button */}
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-          <TouchableOpacity style={styles.saveBtn} activeOpacity={0.85}>
-            <Ionicons name="save-outline" size={18} color={colors.text} style={{ marginRight: 8 }} />
-            <Text style={styles.saveBtnText}>Save Entry</Text>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 12, borderTopColor: colors.separator }]}>
+          <TouchableOpacity
+            style={[styles.saveBtn, { backgroundColor: saving ? colors.primaryDim : colors.primary }]}
+            onPress={handleSave}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.saveBtnText}>{saving ? "Saving..." : "Save Note"}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -109,84 +82,14 @@ export default function JournalScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 20, paddingBottom: 20 },
-
-  fieldLabel: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "600",
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  inputBox: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 52,
-    justifyContent: "center",
-  },
-  input: { color: colors.text, fontSize: 16 },
-
-  textAreaBox: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    minHeight: 160,
-  },
-  textArea: {
-    color: colors.text,
-    fontSize: 15,
-    lineHeight: 22,
-    minHeight: 128,
-  },
-
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "700",
-    marginTop: 24,
-    marginBottom: 12,
-  },
-
-  uploadZone: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderStyle: "dashed",
-    borderRadius: 14,
-    paddingVertical: 32,
-    alignItems: "center",
-    backgroundColor: colors.primaryDim,
-    marginBottom: 16,
-  },
-  uploadIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.card,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  uploadTitle: { color: colors.text, fontSize: 15, fontWeight: "600", marginBottom: 4 },
-  uploadSub: { color: colors.textSecondary, fontSize: 12 },
-
-  thumbRow: { flexDirection: "row", gap: 8 },
-  thumb: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
-    borderRadius: 10,
-  },
-
-  footer: { paddingHorizontal: 20, paddingTop: 12 },
-  saveBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingVertical: 18,
-  },
-  saveBtnText: { color: colors.text, fontSize: 17, fontWeight: "700" },
+  container: { flex: 1 },
+  navbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, marginBottom: 4 },
+  navTitle: { fontSize: 17, fontWeight: "700" },
+  inner: { paddingHorizontal: 16 },
+  dateLine: { fontSize: 14, marginBottom: 12 },
+  noteCard: { borderRadius: 16, padding: 16, minHeight: 300 },
+  noteInput: { fontSize: 15, lineHeight: 24, minHeight: 280 },
+  footer: { paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1 },
+  saveBtn: { borderRadius: 14, height: 52, justifyContent: "center", alignItems: "center" },
+  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });

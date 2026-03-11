@@ -31,7 +31,8 @@
     },
     "owner": "prshk1",
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-secure-store"
     ]
   }
 }

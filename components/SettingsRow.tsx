@@ -1,76 +1,56 @@
-import React from "react";
-import { View, Text, Switch, TouchableOpacity, StyleSheet } from "react-native";
+﻿import React from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, TextStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../theme/colors";
+import { useTheme } from "../context/ThemeContext";
 
-interface SettingsRowBaseProps {
+export interface SettingsRowProps {
   label: string;
-}
-
-interface SettingsRowChevronProps extends SettingsRowBaseProps {
-  type: "chevron";
-  value: string;
+  value?: string;
+  /** Custom right-side element (overrides value + chevron) */
+  right?: React.ReactNode;
+  labelStyle?: TextStyle;
   onPress?: () => void;
+  style?: ViewStyle;
 }
 
-interface SettingsRowToggleProps extends SettingsRowBaseProps {
-  type: "toggle";
-  value: boolean;
-  onToggle: (val: boolean) => void;
-}
+export default function SettingsRow({ label, value, right, labelStyle, onPress, style }: SettingsRowProps) {
+  const { colors } = useTheme();
 
-type SettingsRowProps = SettingsRowChevronProps | SettingsRowToggleProps;
+  const rowContent = (
+    <>
+      <Text style={[styles.label, { color: colors.text }, labelStyle]}>{label}</Text>
+      {right ?? (value != null ? (
+        <View style={styles.valueRow}>
+          <Text style={[styles.value, { color: colors.textSecondary }]}>{value}</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={styles.chevron} />
+        </View>
+      ) : null)}
+    </>
+  );
 
-/** Single settings list row — label + value/chevron or toggle */
-export default function SettingsRow(props: SettingsRowProps) {
-  if (props.type === "toggle") {
+  if (onPress) {
     return (
-      <View style={styles.row}>
-        <Text style={styles.label}>{props.label}</Text>
-        <Switch
-          value={props.value}
-          onValueChange={props.onToggle}
-          trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor={colors.text}
-        />
-      </View>
+      <TouchableOpacity
+        style={[styles.row, { borderBottomColor: colors.separator }, style]}
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        {rowContent}
+      </TouchableOpacity>
     );
   }
 
   return (
-    <TouchableOpacity style={styles.row} onPress={props.onPress} activeOpacity={0.7}>
-      <Text style={styles.label}>{props.label}</Text>
-      <View style={styles.chevronRow}>
-        <Text style={styles.value}>{props.value}</Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={styles.chevron} />
-      </View>
-    </TouchableOpacity>
+    <View style={[styles.row, { borderBottomColor: colors.separator }, style]}>
+      {rowContent}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 15,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.separator,
-  },
-  label: {
-    color: colors.text,
-    fontSize: 15,
-  },
-  chevronRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  value: {
-    color: colors.textSecondary,
-    fontSize: 15,
-  },
-  chevron: {
-    marginLeft: 6,
-  },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 15, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth },
+  label: { fontSize: 15, flex: 1 },
+  valueRow: { flexDirection: "row", alignItems: "center" },
+  value: { fontSize: 15 },
+  chevron: { marginLeft: 6 },
 });

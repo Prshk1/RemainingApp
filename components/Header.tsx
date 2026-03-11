@@ -1,14 +1,8 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  StatusBar,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../theme/colors";
+import { useTheme } from "../context/ThemeContext";
 
 interface HeaderProps {
   title: string;
@@ -17,36 +11,43 @@ interface HeaderProps {
   onRightPress?: () => void;
 }
 
-/** Reusable screen header — back chevron, centered title, optional right icon */
-export default function Header({
-  title,
-  onBack,
-  rightIcon,
-  onRightPress,
-}: HeaderProps) {
+export default function Header({ title, onBack, rightIcon, onRightPress }: HeaderProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
 
   return (
-    <View style={[styles.wrapper, { paddingTop: insets.top + 8 }]}>
-      {/* Left: back button or empty placeholder */}
+    <View
+      style={[
+        styles.wrapper,
+        {
+          paddingTop: insets.top + 10,
+          backgroundColor: colors.background,
+          borderBottomColor: colors.separator,
+        },
+      ]}
+    >
       <View style={styles.side}>
-        {onBack ? (
-          <TouchableOpacity onPress={onBack} style={styles.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        {onBack && (
+          <TouchableOpacity
+            onPress={onBack}
+            style={styles.iconBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
             <Ionicons name="chevron-back" size={22} color={colors.text} />
           </TouchableOpacity>
-        ) : null}
+        )}
       </View>
-
-      {/* Center: title */}
-      <Text style={styles.title}>{title}</Text>
-
-      {/* Right: optional icon or empty placeholder */}
+      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
       <View style={styles.side}>
-        {rightIcon ? (
-          <TouchableOpacity onPress={onRightPress} style={styles.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        {rightIcon && (
+          <TouchableOpacity
+            onPress={onRightPress}
+            style={styles.iconBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
             <Ionicons name={rightIcon} size={22} color={colors.text} />
           </TouchableOpacity>
-        ) : null}
+        )}
       </View>
     </View>
   );
@@ -59,20 +60,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 14,
-    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  side: {
-    width: 40,
-    alignItems: "center",
-  },
-  title: {
-    flex: 1,
-    textAlign: "center",
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: "700",
-  },
-  iconBtn: {
-    padding: 4,
-  },
+  side: { width: 40, alignItems: "center" },
+  title: { flex: 1, textAlign: "center", fontSize: 17, fontWeight: "700" },
+  iconBtn: { padding: 4 },
 });
+

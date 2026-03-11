@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../theme/colors";
+import { useTheme } from "../context/ThemeContext";
 
 interface AttendanceCardProps {
   day: string;
@@ -13,7 +13,6 @@ interface AttendanceCardProps {
   onPress?: () => void;
 }
 
-/** Single attendance row — calendar icon, date/time, hours right-aligned */
 export default function AttendanceCard({
   day,
   date,
@@ -23,17 +22,15 @@ export default function AttendanceCard({
   isManual,
   onPress,
 }: AttendanceCardProps) {
+  const { colors } = useTheme();
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.75}>
-      {/* Calendar icon box */}
-      <View style={styles.iconBox}>
+    <TouchableOpacity style={[styles.card, { backgroundColor: colors.card }]} onPress={onPress} activeOpacity={0.75}>
+      <View style={[styles.iconBox, { backgroundColor: colors.cardAlt }]}>
         <Ionicons name="calendar" size={20} color={colors.primary} />
       </View>
-
-      {/* Text content */}
       <View style={styles.content}>
         <View style={styles.titleRow}>
-          <Text style={styles.dayDate}>
+          <Text style={[styles.dayDate, { color: colors.text }]}>
             {day}, {date}
           </Text>
           {isManual && (
@@ -45,58 +42,23 @@ export default function AttendanceCard({
             />
           )}
         </View>
-        <Text style={styles.times}>
+        <Text style={[styles.times, { color: colors.textSecondary }]}>
           In: {timeIn} - Out: {timeOut}
         </Text>
       </View>
 
-      {/* Hours */}
-      <Text style={styles.hours}>{hours} hrs</Text>
+      <Text style={[styles.hours, { color: colors.text }]}>{hours} hrs</Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-  },
-  iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: colors.cardAlt,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-  },
-  content: {
-    flex: 1,
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  dayDate: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  editIcon: {
-    marginLeft: 6,
-  },
-  times: {
-    color: colors.textSecondary,
-    fontSize: 13,
-  },
-  hours: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "700",
-  },
+  card: { flexDirection: "row", alignItems: "center", borderRadius: 14, padding: 14, marginBottom: 10 },
+  iconBox: { width: 44, height: 44, borderRadius: 10, justifyContent: "center", alignItems: "center", marginRight: 14 },
+  content: { flex: 1 },
+  titleRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
+  dayDate: { fontSize: 15, fontWeight: "600" },
+  editIcon: { marginLeft: 6 },
+  times: { fontSize: 13 },
+  hours: { fontSize: 15, fontWeight: "700" },
 });

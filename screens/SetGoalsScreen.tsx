@@ -1,204 +1,121 @@
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
+  View, Text, TextInput, TouchableOpacity, ScrollView,
+  StyleSheet, KeyboardAvoidingView, Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeContext";
+import { useAppSettings, WEEKDAYS } from "../context/AppSettingsContext";
+import { useAuth } from "../context/AuthContext";
+import { upsertGoals } from "../services/database/repositories/goals";
+import { generateId } from "../utils/generateId";
 import { RootStackParamList } from "../App";
-import { colors } from "../theme/colors";
 
-type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, "SetGoals">;
-};
+type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
-/**
- * Set Goals onboarding step — matches Figma slide 2.
- * Inputs for total required hours and max hours per day.
- */
-export default function SetGoalsScreen({ navigation }: Props) {
+export default function SetGoalsScreen() {
   const insets = useSafeAreaInsets();
-  const [totalHours, setTotalHours] = useState("");
-  const [maxPerDay, setMaxPerDay] = useState("");
+  const { colors } = useTheme();
+  const navigation = useNavigation<NavProp>();
+  const { updateSettings, settings } = useAppSettings();
+  const { user } = useAuth();
+
+  const [requiredHours, setRequiredHours] = useState(String(settings.requiredHours));
+  const [maxHoursPerDay, setMaxHoursPerDay] = useState(String(settings.maxHoursPerDay));
+  const [workDays, setWorkDays] = useState<string[]>(settings.workDays);
+  const [saving, setSaving] = useState(false);
+
+  function toggleDay(day: string) {
+    setWorkDays((prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]);
+  }
+
+  async function handleSave() {
+    const req = parseFloat(requiredHours);
+    const max = parseFloat(maxHoursPerDay);
+    if (isNaN(req) || req <= 0 || isNaN(max) || max <= 0 || workDays.length === 0) return;
+    setSaving(true);
+    try {
+      await updateSettings({ requiredHours: req, maxHoursPerDay: max, workDays });
+      if (user) {
+        upsertGoals(user.id, req, max, workDays, settings.lunchBreakEnabled, settings.timeFormat);
+      }
+      navigation.navigate("MainTabs");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inp = [styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }];
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={[
-          styles.container,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 20 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Header row with back button and title */}
-        <View style={styles.headerRow}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <View style={[styles.container, { backgroundColor: colors.backgroundAlt, paddingTop: insets.top + 20 }]}>
+        <ScrollView contentContainerStyle={[styles.inner, { paddingBottom: insets.bottom + 20 }]} showsVerticalScrollIndicator={false}>
+          <Ionicons name="flag-outline" size={48} color={colors.primary} style={styles.icon} />
+          <Text style={[styles.title, { color: colors.text }]}>Set Your Goals</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Configure your work hours and schedule to track your progress</Text>
+
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Required Total Hours</Text>
+            <TextInput style={inp} value={requiredHours} onChangeText={setRequiredHours} keyboardType="numeric" placeholder="e.g. 400" placeholderTextColor={colors.textMuted} />
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Max Hours per Day</Text>
+            <TextInput style={inp} value={maxHoursPerDay} onChangeText={setMaxHoursPerDay} keyboardType="numeric" placeholder="e.g. 8" placeholderTextColor={colors.textMuted} />
+          </View>
+
+          <Text style={[styles.sectionLabel, { color: colors.text }]}>Work Days</Text>
+          <View style={[styles.daysCard, { backgroundColor: colors.card }]}>
+            {WEEKDAYS.map((day) => {
+              const active = workDays.includes(day);
+              return (
+                <TouchableOpacity
+                  key={day}
+                  style={[styles.dayRow, { borderBottomColor: colors.separator }]}
+                  onPress={() => toggleDay(day)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.dayLabel, { color: colors.text }]}>{day}</Text>
+                  <View style={[styles.checkbox, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : "transparent" }]}>
+                    {active && <Ionicons name="checkmark" size={14} color="#fff" />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </ScrollView>
+
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 12, borderTopColor: colors.separator }]}>
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={[styles.saveBtn, { backgroundColor: saving ? colors.primaryDim : colors.primary }]}
+            onPress={handleSave}
+            disabled={saving || workDays.length === 0}
+            activeOpacity={0.85}
           >
-            <Ionicons name="chevron-back" size={24} color={colors.text} />
+            <Text style={styles.saveBtnText}>{saving ? "Saving..." : "Get Started"}</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Set Goals</Text>
-          <View style={{ width: 24 }} />
         </View>
-
-        {/* Page heading */}
-        <Text style={styles.heading}>Set Your{"\n"}Internship Goals</Text>
-        <Text style={styles.subheading}>
-          Enter the total required hours for your internship and the maximum
-          hours you can work per day.
-        </Text>
-
-        {/* Total Required Hours */}
-        <Text style={styles.fieldLabel}>TOTAL REQUIRED HOURS</Text>
-        <View style={styles.inputRow}>
-          <Ionicons name="time-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 300"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="numeric"
-            value={totalHours}
-            onChangeText={setTotalHours}
-          />
-          <Text style={styles.inputUnit}>hrs</Text>
-        </View>
-
-        {/* Max Hours Per Day */}
-        <Text style={[styles.fieldLabel, { marginTop: 24 }]}>MAX HOURS PER DAY</Text>
-        <View style={styles.inputRow}>
-          <Ionicons name="calendar-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 8"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="numeric"
-            value={maxPerDay}
-            onChangeText={setMaxPerDay}
-          />
-          <Text style={styles.inputUnit}>hrs/day</Text>
-        </View>
-
-        <View style={styles.spacer} />
-
-        {/* Page dots — second dot active */}
-        <View style={styles.dotsRow}>
-          <View style={styles.dot} />
-          <View style={[styles.dot, styles.dotActive]} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-        </View>
-
-        {/* Next button */}
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate("MainTabs")}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.buttonText}>Next  →</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 36,
-  },
-  headerTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: "700",
-  },
-  heading: {
-    color: colors.text,
-    fontSize: 32,
-    fontWeight: "800",
-    lineHeight: 42,
-    marginBottom: 14,
-  },
-  subheading: {
-    color: colors.textSecondary,
-    fontSize: 15,
-    lineHeight: 24,
-    textAlign: "center",
-    marginBottom: 36,
-  },
-  fieldLabel: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1,
-    marginBottom: 10,
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    height: 56,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 16,
-  },
-  inputUnit: {
-    color: colors.textMuted,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  spacer: { flex: 1, minHeight: 40 },
-  dotsRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 24,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.border,
-  },
-  dotActive: {
-    width: 28,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-  },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: "700",
-  },
+  container: { flex: 1 },
+  inner: { paddingHorizontal: 20 },
+  icon: { alignSelf: "center", marginBottom: 16 },
+  title: { fontSize: 28, fontWeight: "800", textAlign: "center", marginBottom: 8 },
+  subtitle: { fontSize: 14, textAlign: "center", lineHeight: 22, marginBottom: 28 },
+  card: { borderRadius: 16, padding: 16, marginBottom: 24 },
+  label: { fontSize: 13, fontWeight: "600", marginBottom: 6 },
+  input: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12 },
+  sectionLabel: { fontSize: 16, fontWeight: "700", marginBottom: 12 },
+  daysCard: { borderRadius: 16, overflow: "hidden", marginBottom: 24 },
+  dayRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  dayLabel: { fontSize: 15 },
+  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  footer: { paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1 },
+  saveBtn: { borderRadius: 14, height: 52, justifyContent: "center", alignItems: "center" },
+  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });

@@ -8,13 +8,12 @@ import {
   Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
-import { colors } from "../theme/colors";
+import { useTheme } from "../context/ThemeContext";
 
-type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, "Onboarding">;
-};
+type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
 const { width } = Dimensions.get("window");
 const LOGO_SIZE = width * 0.62;
@@ -23,11 +22,13 @@ const LOGO_SIZE = width * 0.62;
  * Onboarding splash screen — uses the Remaining Logo asset.
  * Logo image, app title, subtitle, page dots, Get Started CTA.
  */
-export default function OnboardingScreen({ navigation }: Props) {
+export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const navigation = useNavigation<NavProp>();
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + 20 }]}>
+    <View style={[styles.container, { paddingBottom: insets.bottom + 20, backgroundColor: colors.background }]}>
       {/* Remaining Logo */}
       <Image
         source={require("../assets/Remaining Logo.png")}
@@ -36,24 +37,24 @@ export default function OnboardingScreen({ navigation }: Props) {
       />
 
       {/* Title */}
-      <Text style={styles.title}>Remaining</Text>
+      <Text style={[styles.title, { color: colors.text }]}>Remaining</Text>
 
       {/* Subtitle */}
-      <Text style={styles.subtitle}>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
         Track your internship hours effortlessly{"\n"}and focus on your professional growth.
       </Text>
 
       {/* Page indicator — 4 dots, first is active/wide */}
       <View style={styles.dotsRow}>
-        <View style={[styles.dot, styles.dotActive]} />
-        <View style={styles.dot} />
-        <View style={styles.dot} />
-        <View style={styles.dot} />
+        <View style={[styles.dot, styles.dotActive, { backgroundColor: colors.primary }]} />
+        <View style={[styles.dot, { backgroundColor: colors.border }]} />
+        <View style={[styles.dot, { backgroundColor: colors.border }]} />
+        <View style={[styles.dot, { backgroundColor: colors.border }]} />
       </View>
 
       {/* CTA button */}
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, { backgroundColor: colors.primary }]}
         onPress={() => navigation.navigate("SetGoals")}
         activeOpacity={0.85}
       >
@@ -66,7 +67,6 @@ export default function OnboardingScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 28,
@@ -77,14 +77,12 @@ const styles = StyleSheet.create({
     marginBottom: 44,
   },
   title: {
-    color: colors.text,
     fontSize: 38,
     fontWeight: "800",
     marginBottom: 16,
     textAlign: "center",
   },
   subtitle: {
-    color: colors.textSecondary,
     fontSize: 16,
     textAlign: "center",
     lineHeight: 26,
@@ -100,22 +98,19 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.border,
   },
   dotActive: {
     width: 28,
     borderRadius: 4,
-    backgroundColor: colors.primary,
   },
   button: {
     width: "100%",
-    backgroundColor: colors.primary,
     borderRadius: 16,
     paddingVertical: 18,
     alignItems: "center",
   },
   buttonText: {
-    color: colors.text,
+    color: "#fff",
     fontSize: 17,
     fontWeight: "700",
   },

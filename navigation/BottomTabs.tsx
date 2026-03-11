@@ -1,86 +1,70 @@
-import React from "react";
-import { View, TouchableOpacity, StyleSheet, Platform } from "react-native";
+﻿import React from "react";
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../theme/colors";
+import { useTheme } from "../context/ThemeContext";
 
-// Screens — tab roots
 import DashboardScreen from "../screens/DashboardScreen";
 import AttendanceScreen from "../screens/AttendanceScreen";
 import QRScreen from "../screens/QRScreen";
 import BonusScreen from "../screens/BonusScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 
-// Nested screens
-import ManualEntryScreen from "../screens/ManualEntryScreen";
-import AttendanceDetailScreen from "../screens/AttendanceDetailScreen";
-import JournalScreen from "../screens/JournalScreen";
-
-// ─── Stack Param Lists ───────────────────────────────────────────────────────
-
-export type DashboardStackParamList = {
-  DashboardMain: undefined;
-  ManualEntry: undefined;
-};
-
-export type AttendanceStackParamList = {
-  AttendanceMain: undefined;
-  AttendanceDetail: undefined;
-  Journal: undefined;
-};
-
-const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
-const AttendanceStack = createNativeStackNavigator<AttendanceStackParamList>();
-
-// ─── Nested Stacks ───────────────────────────────────────────────────────────
-
-function DashboardStackScreen() {
-  return (
-    <DashboardStack.Navigator screenOptions={{ headerShown: false }}>
-      <DashboardStack.Screen name="DashboardMain" component={DashboardScreen} />
-      <DashboardStack.Screen name="ManualEntry" component={ManualEntryScreen} />
-    </DashboardStack.Navigator>
-  );
-}
-
-function AttendanceStackScreen() {
-  return (
-    <AttendanceStack.Navigator screenOptions={{ headerShown: false }}>
-      <AttendanceStack.Screen name="AttendanceMain" component={AttendanceScreen} />
-      <AttendanceStack.Screen name="AttendanceDetail" component={AttendanceDetailScreen} />
-      <AttendanceStack.Screen name="Journal" component={JournalScreen} />
-    </AttendanceStack.Navigator>
-  );
-}
-
-// ─── Bottom Tabs ─────────────────────────────────────────────────────────────
-
 const Tab = createBottomTabNavigator();
 
-/** Custom elevated center QR button matching the Figma design */
+/** Floating primary action button replacing the center QR tab */
 function QRTabButton({ onPress }: { onPress?: () => void }) {
+  const { colors } = useTheme();
   return (
-    <TouchableOpacity style={styles.qrButton} onPress={onPress} activeOpacity={0.85}>
-      <Ionicons name="qr-code" size={28} color={colors.text} />
+    <TouchableOpacity
+      style={[styles.qrButton, { backgroundColor: colors.primary, shadowColor: colors.primary }]}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      <Ionicons name="qr-code" size={26} color="#fff" />
     </TouchableOpacity>
   );
 }
 
 export default function BottomTabs() {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const tabBarHeight = Platform.OS === "ios" ? 64 + insets.bottom : 58 + insets.bottom;
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          height: tabBarHeight,
+          paddingBottom: insets.bottom + 4,
+          paddingTop: 8,
+          // Needed so the floated QR button isn't clipped
+          overflow: "visible",
+          elevation: 12,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+        },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: styles.tabLabel,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600", marginBottom: 2 },
       }}
     >
       <Tab.Screen
         name="Dashboard"
-        component={DashboardStackScreen}
+        component={DashboardScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="grid" size={size} color={color} />
@@ -89,7 +73,7 @@ export default function BottomTabs() {
       />
       <Tab.Screen
         name="Attendance"
-        component={AttendanceStackScreen}
+        component={AttendanceScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar" size={size} color={color} />
@@ -102,8 +86,9 @@ export default function BottomTabs() {
         options={{
           tabBarIcon: () => null,
           tabBarLabel: () => null,
-          // Custom raised button replaces the default tab button
-          tabBarButton: (props) => <QRTabButton onPress={props.onPress as () => void} />,
+          tabBarButton: (props) => (
+            <QRTabButton onPress={props.onPress as () => void} />
+          ),
         }}
       />
       <Tab.Screen
@@ -129,32 +114,18 @@ export default function BottomTabs() {
 }
 
 const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: colors.card,
-    borderTopColor: colors.border,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    height: Platform.OS === "ios" ? 84 : 64,
-    paddingBottom: Platform.OS === "ios" ? 20 : 8,
-    paddingTop: 8,
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: "500",
-  },
-  // Raised QR button — sits above the tab bar
   qrButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.primary,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: Platform.OS === "ios" ? 20 : 10,
-    // Elevation / shadow
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
-    elevation: 10,
+    // Float above the tab bar
+    marginBottom: Platform.OS === "ios" ? 24 : 16,
+    // Shadow
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.55,
+    shadowRadius: 12,
+    elevation: 14,
   },
 });

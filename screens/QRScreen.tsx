@@ -1,145 +1,89 @@
-import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-} from "react-native";
+﻿import React, { useEffect, useState } from "react";
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import Header from "../components/Header";
-import { colors } from "../theme/colors";
+import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
+import { getQRImage, upsertQRImage } from "../services/database/repositories/qr";
+import { generateId } from "../utils/generateId";
 
-const { width } = Dimensions.get("window");
-const QR_SIZE = width - 64;
-
-/**
- * QR Code screen — matches Figma QR design.
- * Shows placeholder QR frame, internship ID, and upload button.
- */
 export default function QRScreen() {
+  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const { user } = useAuth();
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      const row = getQRImage(user.id);
+      if (row?.local_uri) setImageUri(row.local_uri);
+    }
+    setLoading(false);
+  }, [user]);
+
+  async function pickImage() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.9,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const uri = result.assets[0].uri;
+      setImageUri(uri);
+      if (user) {
+      upsertQRImage(generateId(), user.id, uri, null);
+      }
+    }
+  }
+
   return (
-    // Header handles its own safe-area top padding
-    <View style={styles.container}>
-      <Header title="Scan QR Code" />
-
-      {/* Instruction */}
-      <Text style={styles.instruction}>
-        Show this code to the scanner to log your hours.
-      </Text>
-
-      {/* QR placeholder box */}
-      <View style={styles.qrBox}>
-        {/* Placeholder QR grid — visual approximation with nested boxes */}
-        <View style={styles.qrInner}>
-          {/* Top-left finder */}
-          <View style={[styles.finder, styles.finderTL]}>
-            <View style={styles.finderInner} />
-          </View>
-          {/* Top-right finder */}
-          <View style={[styles.finder, styles.finderTR]}>
-            <View style={styles.finderInner} />
-          </View>
-          {/* Bottom-left finder */}
-          <View style={[styles.finder, styles.finderBL]}>
-            <View style={styles.finderInner} />
-          </View>
-          {/* Center QR label */}
-          <View style={styles.qrCenter}>
-            <Ionicons name="qr-code" size={80} color={colors.text} />
-          </View>
-        </View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Header title="QR Code" />
+      <View style={[styles.content, { paddingBottom: insets.bottom + 80 }]}>
+        {loading ? (
+          <ActivityIndicator size="large" color={colors.primary} />
+        ) : imageUri ? (
+          <>
+            <View style={[styles.imageWrap, { backgroundColor: colors.card }]}>
+              <Image source={{ uri: imageUri }} style={styles.image} resizeMode="contain" />
+            </View>
+            <TouchableOpacity style={[styles.changeBtn, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={pickImage} activeOpacity={0.8}>
+              <Ionicons name="image-outline" size={20} color={colors.primary} style={{ marginRight: 8 }} />
+              <Text style={[styles.changeBtnText, { color: colors.primary }]}>Change Image</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <View style={[styles.placeholder, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Ionicons name="qr-code-outline" size={72} color={colors.textMuted} />
+              <Text style={[styles.placeholderTitle, { color: colors.text }]}>No QR Code</Text>
+              <Text style={[styles.placeholderSubtitle, { color: colors.textSecondary }]}>Upload a QR code image from your gallery to display it here</Text>
+            </View>
+            <TouchableOpacity style={[styles.uploadBtn, { backgroundColor: colors.primary }]} onPress={pickImage} activeOpacity={0.85}>
+              <Ionicons name="cloud-upload-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.uploadBtnText}>Upload QR Image</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
-
-      {/* Internship ID */}
-      <Text style={styles.idText}>ID: 10934-APP</Text>
-
-      {/* Upload New QR */}
-      <TouchableOpacity style={styles.uploadBtn} activeOpacity={0.8}>
-        <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} style={{ marginRight: 8 }} />
-        <Text style={styles.uploadBtnText}>Upload New QR</Text>
-      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.backgroundAlt,
-    alignItems: "center",
-  },
-  instruction: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    marginTop: 16,
-    marginBottom: 28,
-    paddingHorizontal: 24,
-    alignSelf: "flex-start",
-  },
-  qrBox: {
-    width: QR_SIZE,
-    height: QR_SIZE,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    overflow: "hidden",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 28,
-  },
-  qrInner: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: colors.text,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  finder: {
-    position: "absolute",
-    width: 54,
-    height: 54,
-    borderWidth: 5,
-    borderColor: colors.backgroundAlt,
-    borderRadius: 4,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  finderTL: { top: 16, left: 16 },
-  finderTR: { top: 16, right: 16 },
-  finderBL: { bottom: 16, left: 16 },
-  finderInner: {
-    width: 22,
-    height: 22,
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 2,
-  },
-  qrCenter: {
-    backgroundColor: colors.text,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  idText: {
-    color: colors.primary,
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 32,
-    letterSpacing: 0.5,
-  },
-  uploadBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 30,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    backgroundColor: colors.primaryDim,
-  },
-  uploadBtnText: {
-    color: colors.primary,
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  container: { flex: 1 },
+  content: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
+  imageWrap: { borderRadius: 20, padding: 16, marginBottom: 20, width: 280, height: 280, justifyContent: "center", alignItems: "center" },
+  image: { width: 248, height: 248, borderRadius: 12 },
+  changeBtn: { flexDirection: "row", alignItems: "center", borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12, borderWidth: 1 },
+  changeBtnText: { fontSize: 15, fontWeight: "600" },
+  placeholder: { borderRadius: 20, padding: 32, alignItems: "center", marginBottom: 24, borderWidth: 1, borderStyle: "dashed", width: 280, height: 280, justifyContent: "center" },
+  placeholderTitle: { fontSize: 18, fontWeight: "700", marginTop: 16, marginBottom: 8 },
+  placeholderSubtitle: { fontSize: 13, textAlign: "center", lineHeight: 20 },
+  uploadBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderRadius: 14, paddingHorizontal: 28, paddingVertical: 14, width: "100%" },
+  uploadBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });
