@@ -1,4 +1,4 @@
-﻿import React, { useCallback } from "react";
+﻿import React, { useCallback, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,6 +7,9 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Header from "../components/Header";
 import StatCard from "../components/StatCard";
 import AttendanceCard from "../components/AttendanceCard";
+import SwipeableRow from "../components/SwipeableRow";
+import ConfirmModal from "../components/ConfirmModal";
+import AnimatedScreenContainer from "../components/AnimatedScreenContainer";
 import { useTheme } from "../context/ThemeContext";
 import { useAttendance } from "../context/AttendanceContext";
 import { useAppSettings } from "../context/AppSettingsContext";
@@ -18,19 +21,26 @@ export default function AttendanceScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const navigation = useNavigation<NavProp>();
-  const { entries, totalHours, daysLogged, refresh } = useAttendance();
-  const { settings } = useAppSettings();
+  const { entries, totalHours, daysLogged, refresh, deleteEntry } = useAttendance();
+  const { settings, updateSettings } = useAppSettings();
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [dontAskAgain, setDontAskAgain] = useState(false);
 
-  // Refresh every time this tab comes into focus (e.g. after timer time-out)
   useFocusEffect(
-    useCallback(() => {
-      refresh();
-    }, [refresh])
+    useCallback(() => { refresh(); }, [refresh])
   );
 
+  function requestDelete(id: string) {
+    if (!settings.confirmAttendanceDelete) {
+      deleteEntry(id);
+    } else {
+      setDeleteTarget(id);
+    }
+  }
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header title="Attendance History" />
+    <AnimatedScreenContainer style={{ backgroundColor: colors.background }}>
+      <Header title="Attendance History" titleIcon="calendar" />
 
       <FlatList
         data={entries}
@@ -58,16 +68,38 @@ export default function AttendanceScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <AttendanceCard
-            day={new Date(item.date).toLocaleDateString("en-US", { weekday: "short" })}
-            date={new Date(item.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-            timeIn={item.timeIn ? new Date(item.timeIn).toLocaleTimeString("en-US", { hour12: settings.timeFormat === "12h", hour: "2-digit", minute: "2-digit" }) : "--"}
-            timeOut={item.timeOut ? new Date(item.timeOut).toLocaleTimeString("en-US", { hour12: settings.timeFormat === "12h", hour: "2-digit", minute: "2-digit" }) : "--"}
-            hours={item.hours ?? 0}
-            isManual={item.isManual}
-            onPress={() => navigation.navigate("AttendanceDetail", { entryId: item.id })}
-          />
+          <SwipeableRow
+            onEdit={() => navigation.navigate("AttendanceDetail", { entryId: item.id })}
+            onDelete={() => requestDelete(item.id)}
+          >
+            <AttendanceCard
+              day={new Date(item.date).toLocaleDateString("en-US", { weekday: "short" })}
+              date={new Date(item.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              timeIn={item.timeIn ? new Date(item.timeIn).toLocaleTimeString("en-US", { hour12: settings.timeFormat === "12h", hour: "2-digit", minute: "2-digit" }) : "--"}
+              timeOut={item.timeOut ? new Date(item.timeOut).toLocaleTimeString("en-US", { hour12: settings.timeFormat === "12h", hour: "2-digit", minute: "2-digit" }) : "--"}
+              hours={item.hours ?? 0}
+              isManual={item.isManual}
+              onPress={() => navigation.navigate("AttendanceDetail", { entryId: item.id })}
+            />
+          </SwipeableRow>
         )}
+      />
+
+      <ConfirmModal
+        visible={deleteTarget !== null}
+        title="Delete Entry"
+        message="Are you sure you want to delete this attendance entry?"
+        confirmLabel="Delete"
+        destructive
+        dontAskAgainLabel="Don't ask again for attendance"
+        dontAskAgainChecked={dontAskAgain}
+        onDontAskAgainChange={setDontAskAgain}
+        onConfirm={() => {
+          if (deleteTarget) deleteEntry(deleteTarget);
+          if (dontAskAgain) updateSettings({ confirmAttendanceDelete: false });
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
       />
 
       <TouchableOpacity
@@ -77,7 +109,7 @@ export default function AttendanceScreen() {
       >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
-    </View>
+    </AnimatedScreenContainer>
   );
 }
 

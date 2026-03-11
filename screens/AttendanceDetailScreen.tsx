@@ -1,9 +1,24 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Image } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Modal,
+  Dimensions,
+  Share,
+  Alert,
+  Platform,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import * as MediaLibrary from "expo-media-library";
+import Header from "../components/Header";
+import ConfirmModal from "../components/ConfirmModal";
 import { useTheme } from "../context/ThemeContext";
 import { useAttendance } from "../context/AttendanceContext";
 import { useAppSettings } from "../context/AppSettingsContext";
@@ -12,6 +27,8 @@ import {
   AttachmentRow,
 } from "../services/database/repositories/attachments";
 import { RootStackParamList } from "../App";
+
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 type RoutePropType = RouteProp<RootStackParamList, "AttendanceDetail">;
@@ -26,6 +43,8 @@ export default function AttendanceDetailScreen() {
 
   const entry = entries.find((e) => e.id === route.params.entryId);
   const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
+  const [deleteVisible, setDeleteVisible] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (entry) {
@@ -34,24 +53,44 @@ export default function AttendanceDetailScreen() {
   }, [entry?.id]);
 
   function handleDelete() {
-    Alert.alert("Delete Entry", "Are you sure you want to delete this entry?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          if (entry) { await deleteEntry(entry.id); navigation.goBack(); }
-        },
-      },
-    ]);
+    setDeleteVisible(true);
+  }
+
+  async function confirmDelete() {
+    if (entry) {
+      await deleteEntry(entry.id);
+      navigation.goBack();
+    }
+  }
+
+  async function savePhoto(uri: string) {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission Required", "Allow photo library access to save photos.");
+        return;
+      }
+      await MediaLibrary.saveToLibraryAsync(uri);
+      Alert.alert("Saved", "Photo saved to your gallery.");
+    } catch {
+      Alert.alert("Error", "Could not save photo.");
+    }
+  }
+
+  async function sharePhoto(uri: string) {
+    try {
+      await Share.share(
+        Platform.OS === "ios" ? { url: uri } : { message: uri }
+      );
+    } catch {
+      // user cancelled — no-op
+    }
   }
 
   if (!entry) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.backgroundAlt, paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={26} color={colors.text} />
-        </TouchableOpacity>
+      <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
+        <Header title="Attendance Detail" titleIcon="document-text-outline" onBack={() => navigation.goBack()} />
         <Text style={[styles.notFound, { color: colors.textSecondary }]}>Entry not found</Text>
       </View>
     );
@@ -72,16 +111,17 @@ export default function AttendanceDetailScreen() {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.backgroundAlt, paddingTop: insets.top + 8 }]}>
-      <View style={styles.navbar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="chevron-back" size={26} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.navTitle, { color: colors.text }]}>Attendance Detail</Text>
-        <TouchableOpacity onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="trash-outline" size={22} color={colors.red} />
-        </TouchableOpacity>
-      </View>
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
+      <Header
+        title="Attendance Detail"
+        titleIcon="document-text-outline"
+        onBack={() => navigation.goBack()}
+        rightElement={
+          <TouchableOpacity onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="trash-outline" size={22} color={colors.red} />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView contentContainerStyle={[styles.inner, { paddingBottom: insets.bottom + 80 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.hoursBadgeWrap}>
@@ -125,13 +165,19 @@ export default function AttendanceDetailScreen() {
               Photos ({attachments.length})
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
-              {attachments.map((att) => (
-                <Image
+              {attachments.map((att, idx) => (
+                <TouchableOpacity
                   key={att.id}
-                  source={{ uri: att.file_uri }}
-                  style={styles.attachmentThumb}
-                  resizeMode="cover"
-                />
+                  onPress={() => setPhotoIndex(idx)}
+                  activeOpacity={0.85}
+                >
+                  <Image
+                    source={{ uri: att.file_uri }}
+                    style={styles.attachmentThumb}
+                    resizeMode="cover"
+                    onError={() => {}}
+                  />
+                </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
@@ -150,16 +196,98 @@ export default function AttendanceDetailScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Delete confirmation modal */}
+      <ConfirmModal
+        visible={deleteVisible}
+        title="Delete Entry"
+        message="Are you sure you want to delete this attendance entry? This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteVisible(false)}
+      />
+
+      {/* Fullscreen photo viewer */}
+      <Modal
+        visible={photoIndex !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhotoIndex(null)}
+        statusBarTranslucent
+      >
+        <View style={styles.photoViewer}>
+          {/* close button */}
+          <TouchableOpacity
+            style={[styles.viewerBtn, styles.viewerClose]}
+            onPress={() => setPhotoIndex(null)}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+
+          {photoIndex !== null && (
+            <>
+              <Image
+                source={{ uri: attachments[photoIndex]?.file_uri }}
+                style={styles.viewerImage}
+                resizeMode="contain"
+                onError={() => {}}
+              />
+
+              {/* counter */}
+              {attachments.length > 1 && (
+                <Text style={styles.viewerCounter}>
+                  {photoIndex + 1} / {attachments.length}
+                </Text>
+              )}
+
+              {/* prev / next arrows */}
+              {photoIndex > 0 && (
+                <TouchableOpacity
+                  style={[styles.viewerBtn, styles.viewerPrev]}
+                  onPress={() => setPhotoIndex((i) => (i != null ? i - 1 : 0))}
+                >
+                  <Ionicons name="chevron-back" size={28} color="#fff" />
+                </TouchableOpacity>
+              )}
+              {photoIndex < attachments.length - 1 && (
+                <TouchableOpacity
+                  style={[styles.viewerBtn, styles.viewerNext]}
+                  onPress={() => setPhotoIndex((i) => (i != null ? i + 1 : 0))}
+                >
+                  <Ionicons name="chevron-forward" size={28} color="#fff" />
+                </TouchableOpacity>
+              )}
+
+              {/* save + share action bar */}
+              <View style={[styles.viewerActions, { paddingBottom: insets.bottom + 16 }]}>
+                <TouchableOpacity
+                  style={styles.viewerActionBtn}
+                  onPress={() => savePhoto(attachments[photoIndex!].file_uri)}
+                >
+                  <Ionicons name="download-outline" size={22} color="#fff" />
+                  <Text style={styles.viewerActionLabel}>Save</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.viewerActionBtn}
+                  onPress={() => sharePhoto(attachments[photoIndex!].file_uri)}
+                >
+                  <Ionicons name="share-outline" size={22} color="#fff" />
+                  <Text style={styles.viewerActionLabel}>Share</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+      </Modal>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  backBtn: { paddingHorizontal: 16, paddingVertical: 8 },
   notFound: { textAlign: "center", marginTop: 40, fontSize: 16 },
-  navbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, marginBottom: 8 },
-  navTitle: { fontSize: 17, fontWeight: "700" },
   inner: { paddingHorizontal: 16 },
   hoursBadgeWrap: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20 },
   hoursBadge: { borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8 },
@@ -176,4 +304,48 @@ const styles = StyleSheet.create({
   footer: { paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1 },
   journalBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderRadius: 14, height: 52, borderWidth: 1 },
   journalBtnText: { fontSize: 15, fontWeight: "700" },
+  // Photo viewer
+  photoViewer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  viewerImage: {
+    width: SCREEN_W,
+    height: SCREEN_H * 0.72,
+  },
+  viewerCounter: {
+    position: "absolute",
+    top: 56,
+    alignSelf: "center",
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  viewerBtn: {
+    position: "absolute",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderRadius: 24,
+    width: 48,
+    height: 48,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  viewerClose: { top: 48, right: 16 },
+  viewerPrev: { left: 12, top: "42%" },
+  viewerNext: { right: 12, top: "42%" },
+  viewerActions: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 32,
+    paddingTop: 20,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  viewerActionBtn: { alignItems: "center", gap: 4 },
+  viewerActionLabel: { color: "#fff", fontSize: 12, fontWeight: "600" },
 });

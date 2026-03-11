@@ -7,11 +7,15 @@ import { useTheme } from "../context/ThemeContext";
 interface HeaderProps {
   title: string;
   onBack?: () => void;
+  /** Icon shown to the left of the title text */
+  titleIcon?: keyof typeof Ionicons.glyphMap;
+  titleIconColor?: string;
   rightIcon?: keyof typeof Ionicons.glyphMap;
   onRightPress?: () => void;
+  rightElement?: React.ReactNode;
 }
 
-export default function Header({ title, onBack, rightIcon, onRightPress }: HeaderProps) {
+export default function Header({ title, onBack, titleIcon, titleIconColor, rightIcon, onRightPress, rightElement }: HeaderProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
 
@@ -26,6 +30,7 @@ export default function Header({ title, onBack, rightIcon, onRightPress }: Heade
         },
       ]}
     >
+      {/* Left: back button */}
       <View style={styles.side}>
         {onBack && (
           <TouchableOpacity
@@ -37,9 +42,23 @@ export default function Header({ title, onBack, rightIcon, onRightPress }: Heade
           </TouchableOpacity>
         )}
       </View>
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+
+      {/* Center: optional icon + title */}
+      <View style={styles.titleRow}>
+        {titleIcon && (
+          <Ionicons
+            name={titleIcon}
+            size={18}
+            color={titleIconColor ?? colors.primary}
+            style={{ marginRight: 6 }}
+          />
+        )}
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{title}</Text>
+      </View>
+
+      {/* Right: icon button or custom element */}
       <View style={styles.side}>
-        {rightIcon && (
+        {rightElement ? rightElement : rightIcon ? (
           <TouchableOpacity
             onPress={onRightPress}
             style={styles.iconBtn}
@@ -47,7 +66,7 @@ export default function Header({ title, onBack, rightIcon, onRightPress }: Heade
           >
             <Ionicons name={rightIcon} size={22} color={colors.text} />
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
     </View>
   );
@@ -63,7 +82,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   side: { width: 40, alignItems: "center" },
-  title: { flex: 1, textAlign: "center", fontSize: 17, fontWeight: "700" },
+  titleRow: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  title: { fontSize: 17, fontWeight: "700" },
   iconBtn: { padding: 4 },
 });
 

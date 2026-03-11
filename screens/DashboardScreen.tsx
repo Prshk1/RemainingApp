@@ -13,6 +13,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ProgressRing from "../components/ProgressRing";
 import QuickActionCard from "../components/QuickActionCard";
+import AnimatedScreenContainer from "../components/AnimatedScreenContainer";
 import { useTheme } from "../context/ThemeContext";
 import { useTimer } from "../context/TimerContext";
 import { useAttendance } from "../context/AttendanceContext";
@@ -67,15 +68,16 @@ export default function DashboardScreen() {
   const isBreak = timerState === "break";
 
   return (
-    <ScrollView
-      style={[styles.scroll, { backgroundColor: colors.backgroundAlt }]}
-      contentContainerStyle={[styles.container, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 90 }]}
-      showsVerticalScrollIndicator={false}
-    >
+    <AnimatedScreenContainer>
+      <ScrollView
+        style={[styles.scroll, { backgroundColor: colors.backgroundAlt }]}
+        contentContainerStyle={[styles.container, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 90 }]}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Ionicons name="time-outline" size={18} color={colors.primary} />
+          <Ionicons name="layers-outline" size={20} color={colors.primary} />
           <Text style={[styles.headerTitle, { color: colors.text }]}>  Dashboard</Text>
         </View>
         <View style={[styles.syncBadge, { backgroundColor: colors.primaryDim }]}>
@@ -193,6 +195,7 @@ export default function DashboardScreen() {
         </View>
       </View>
     </ScrollView>
+    </AnimatedScreenContainer>
   );
 }
 

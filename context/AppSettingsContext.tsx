@@ -24,6 +24,9 @@ export interface AppSettings {
   lunchBreakEnabled: boolean;
   /** Display format for all time strings in the app */
   timeFormat: "12h" | "24h";
+  /** Per-list delete confirmation preferences */
+  confirmAttendanceDelete: boolean;
+  confirmBonusDelete: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -32,6 +35,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   workDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
   lunchBreakEnabled: true,
   timeFormat: "12h",
+  confirmAttendanceDelete: true,
+  confirmBonusDelete: true,
 };
 
 interface AppSettingsContextValue {

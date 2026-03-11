@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, KeyboardAvoidingView, Platform, Image, Alert,
+  StyleSheet, KeyboardAvoidingView, Platform, Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as ImagePicker from "expo-image-picker";
+import Header from "../components/Header";
+import ConfirmModal from "../components/ConfirmModal";
 import { useTheme } from "../context/ThemeContext";
 import { useAttendance } from "../context/AttendanceContext";
 import { useAuth } from "../context/AuthContext";
@@ -37,6 +39,7 @@ export default function JournalScreen() {
   const [note, setNote] = useState(entry?.note ?? "");
   const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<string | null>(null);
 
   // Load existing attachments for this entry
   useEffect(() => {
@@ -47,12 +50,15 @@ export default function JournalScreen() {
 
   async function pickImage() {
     if (attachments.length >= MAX_ATTACHMENTS) {
+      // Using native alert for system-level limit; considered acceptable
+      const { Alert } = await import("react-native");
       Alert.alert("Limit reached", `You can attach up to ${MAX_ATTACHMENTS} photos per entry.`);
       return;
     }
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
+      const { Alert } = await import("react-native");
       Alert.alert("Permission required", "Please allow access to your photo library in Settings.");
       return;
     }
@@ -81,17 +87,7 @@ export default function JournalScreen() {
   }
 
   function removeAttachment(id: string) {
-    Alert.alert("Remove photo", "Remove this photo from the journal entry?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: () => {
-          softDeleteAttachment(id);
-          setAttachments((prev) => prev.filter((a) => a.id !== id));
-        },
-      },
-    ]);
+    setRemoveTarget(id);
   }
 
   async function handleSave() {
@@ -107,14 +103,8 @@ export default function JournalScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={[styles.container, { backgroundColor: colors.backgroundAlt, paddingTop: insets.top + 8 }]}>
-        <View style={styles.navbar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="chevron-back" size={26} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.navTitle, { color: colors.text }]}>Journal</Text>
-          <View style={{ width: 26 }} />
-        </View>
+      <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
+        <Header title="Journal" titleIcon="journal-outline" onBack={() => navigation.goBack()} />
 
         <ScrollView
           contentContainerStyle={[styles.inner, { paddingBottom: insets.bottom + 20 }]}
@@ -162,7 +152,7 @@ export default function JournalScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailRow}>
                 {attachments.map((att) => (
                   <View key={att.id} style={styles.thumbWrap}>
-                    <Image source={{ uri: att.file_uri }} style={styles.thumbnail} resizeMode="cover" />
+                    <Image source={{ uri: att.file_uri }} style={styles.thumbnail} resizeMode="cover" onError={() => {}} />
                     <TouchableOpacity
                       style={[styles.removeBtn, { backgroundColor: colors.red }]}
                       onPress={() => removeAttachment(att.id)}
@@ -198,6 +188,22 @@ export default function JournalScreen() {
             <Text style={styles.saveBtnText}>{saving ? "Saving..." : "Save"}</Text>
           </TouchableOpacity>
         </View>
+
+        <ConfirmModal
+          visible={removeTarget !== null}
+          title="Remove Photo"
+          message="Remove this photo from the journal entry?"
+          confirmLabel="Remove"
+          destructive
+          onConfirm={() => {
+            if (removeTarget) {
+              softDeleteAttachment(removeTarget);
+              setAttachments((prev) => prev.filter((a) => a.id !== removeTarget));
+            }
+            setRemoveTarget(null);
+          }}
+          onCancel={() => setRemoveTarget(null)}
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -205,8 +211,6 @@ export default function JournalScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  navbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, marginBottom: 4 },
-  navTitle: { fontSize: 17, fontWeight: "700" },
   inner: { paddingHorizontal: 16 },
   dateLine: { fontSize: 14, marginBottom: 12 },
   noteCard: { borderRadius: 16, padding: 16, minHeight: 220, marginBottom: 20 },

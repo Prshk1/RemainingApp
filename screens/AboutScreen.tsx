@@ -4,8 +4,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../context/ThemeContext";
+import { useNavigation } from "@react-navigation/native";import Header from "../components/Header";import { useTheme } from "../context/ThemeContext";
 
 const APP_VERSION = "1.0.0";
 const BUILD_NUMBER = "1";
@@ -40,18 +39,8 @@ export default function AboutScreen() {
   const navigation = useNavigation();
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.backgroundAlt, paddingTop: insets.top + 8 }]}>
-      {/* Navbar */}
-      <View style={styles.navbar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="chevron-back" size={26} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.navTitle, { color: colors.text }]}>About</Text>
-        <View style={{ width: 26 }} />
-      </View>
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
+      <Header title="About" titleIcon="information-circle-outline" onBack={() => navigation.goBack()} />
 
       <ScrollView
         contentContainerStyle={[styles.inner, { paddingBottom: insets.bottom + 40 }]}
@@ -107,8 +96,6 @@ export default function AboutScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  navbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
-  navTitle: { fontSize: 17, fontWeight: "700" },
   inner: { paddingHorizontal: 16 },
   logoSection: { alignItems: "center", paddingVertical: 28 },
   logoBox: { width: 80, height: 80, borderRadius: 22, alignItems: "center", justifyContent: "center", marginBottom: 14 },

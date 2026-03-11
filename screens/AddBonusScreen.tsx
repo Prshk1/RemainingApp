@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +15,9 @@ import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../context/ThemeContext";
 import { useBonus, BonusEntry } from "../context/BonusContext";
+import Header from "../components/Header";
+import ConfirmModal from "../components/ConfirmModal";
+import InputModal from "../components/InputModal";
 import { getBonusById } from "../services/database/repositories/bonus";
 import { RootStackParamList } from "../App";
 
@@ -27,7 +29,7 @@ export default function AddBonusScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<NavProp>();
   const route = useRoute<RoutePropType>();
-  const { addBonus, updateBonus } = useBonus();
+  const { addBonus, updateBonus, deleteBonus } = useBonus();
 
   const editId = route.params?.bonusId;
   const isEdit = Boolean(editId);
@@ -38,6 +40,8 @@ export default function AddBonusScreen() {
   );
   const [hours, setHours] = useState("");
   const [note, setNote] = useState("");
+  const [deleteVisible, setDeleteVisible] = useState(false);
+  const [errorModal, setErrorModal] = useState<{ title: string; msg: string } | null>(null);
 
   useEffect(() => {
     if (editId) {
@@ -56,15 +60,15 @@ export default function AddBonusScreen() {
   const handleSave = async () => {
     const parsedHours = parseFloat(hours);
     if (!title.trim()) {
-      Alert.alert("Missing title", "Please enter what this bonus is for.");
+      setErrorModal({ title: "Missing title", msg: "Please enter what this bonus is for." });
       return;
     }
     if (!date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      Alert.alert("Invalid date", "Use YYYY-MM-DD format (e.g. 2026-03-11).");
+      setErrorModal({ title: "Invalid date", msg: "Use YYYY-MM-DD format (e.g. 2026-03-11)." });
       return;
     }
     if (isNaN(parsedHours) || parsedHours <= 0) {
-      Alert.alert("Invalid hours", "Enter a positive number of hours.");
+      setErrorModal({ title: "Invalid hours", msg: "Enter a positive number of hours." });
       return;
     }
 
@@ -93,16 +97,19 @@ export default function AddBonusScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.container}>
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {isEdit ? "Edit Bonus" : "Add Bonus Hours"}
-          </Text>
-          <View style={{ width: 24 }} />
-        </View>
+        <Header
+          title={isEdit ? "Edit Bonus" : "Add Bonus Hours"}
+          titleIcon={isEdit ? "create-outline" : "star-outline"}
+          onBack={() => navigation.goBack()}
+          rightElement={isEdit ? (
+            <TouchableOpacity
+              onPress={() => setDeleteVisible(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="trash-outline" size={22} color={colors.red} />
+            </TouchableOpacity>
+          ) : undefined}
+        />
 
         <ScrollView
           contentContainerStyle={styles.content}
@@ -165,6 +172,29 @@ export default function AddBonusScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        <ConfirmModal
+          visible={deleteVisible}
+          title="Delete Bonus"
+          message="Are you sure you want to delete this bonus entry?"
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            setDeleteVisible(false);
+            if (editId) deleteBonus(editId);
+            navigation.goBack();
+          }}
+          onCancel={() => setDeleteVisible(false)}
+        />
+        <ConfirmModal
+          visible={errorModal !== null}
+          title={errorModal?.title ?? ""}
+          message={errorModal?.msg}
+          confirmLabel="OK"
+          cancelLabel="OK"
+          onConfirm={() => setErrorModal(null)}
+          onCancel={() => setErrorModal(null)}
+        />
       </View>
     </KeyboardAvoidingView>
   );

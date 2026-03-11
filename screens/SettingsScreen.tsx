@@ -1,11 +1,13 @@
-﻿import React from "react";
-import { View, ScrollView, Text, Switch, Alert, StyleSheet, TouchableOpacity } from "react-native";
+﻿import React, { useState } from "react";
+import { View, ScrollView, Text, Switch, StyleSheet, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Header from "../components/Header";
 import SettingsRow from "../components/SettingsRow";
+import ConfirmModal from "../components/ConfirmModal";
+import InputModal from "../components/InputModal";
 import { useTheme } from "../context/ThemeContext";
 import { useAppSettings, WEEKDAYS } from "../context/AppSettingsContext";
 import { useAuth } from "../context/AuthContext";
@@ -33,18 +35,16 @@ export default function SettingsScreen() {
   const { signOut } = useAuth();
   const navigation = useNavigation<NavProp>();
 
+  // Modal state
+  const [signOutVisible, setSignOutVisible] = useState(false);
+  const [reqHoursVisible, setReqHoursVisible] = useState(false);
+  const [maxHoursVisible, setMaxHoursVisible] = useState(false);
+
   const THEME_OPTIONS: { label: string; value: ThemeMode; icon: string }[] = [
     { label: "Light", value: "light", icon: "sunny-outline" },
     { label: "Dark", value: "dark", icon: "moon-outline" },
     { label: "System", value: "system", icon: "contrast-outline" },
   ];
-
-  function handleSignOut() {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Sign Out", style: "destructive", onPress: signOut },
-    ]);
-  }
 
   function toggleDay(day: string) {
     const next = settings.workDays.includes(day)
@@ -55,7 +55,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header title="Settings" />
+      <Header title="Settings" titleIcon="settings-outline" />
       <ScrollView
         contentContainerStyle={[styles.inner, { paddingBottom: insets.bottom + 90 }]}
         showsVerticalScrollIndicator={false}
@@ -160,29 +160,40 @@ export default function SettingsScreen() {
         <SettingsRow
           label="Required Hours"
           value={`${settings.requiredHours} hrs`}
-          onPress={() =>
-            Alert.prompt(
-              "Required Hours",
-              "Total hours to complete",
-              (text) => { const n = parseInt(text, 10); if (!isNaN(n) && n > 0) updateSettings({ requiredHours: n }); },
-              "plain-text",
-              String(settings.requiredHours)
-            )
-          }
+          onPress={() => setReqHoursVisible(true)}
         />
         <SettingsRow
           label="Max Hours / Day"
           value={`${settings.maxHoursPerDay} hrs`}
-          onPress={() =>
-            Alert.prompt(
-              "Max Hours / Day",
-              "Used for completion date estimate",
-              (text) => { const n = parseFloat(text); if (!isNaN(n) && n > 0) updateSettings({ maxHoursPerDay: n }); },
-              "plain-text",
-              String(settings.maxHoursPerDay)
-            )
-          }
+          onPress={() => setMaxHoursVisible(true)}
         />
+
+        {/* ── DELETE CONFIRMATIONS ─────────────────────────── */}
+        <Text style={[styles.group, { color: colors.textSecondary }]}>DELETE CONFIRMATIONS</Text>
+        <View style={[styles.rowCard, { backgroundColor: colors.card }]}>
+          <View style={styles.rowCardContent}>
+            <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} style={{ marginRight: 12 }} />
+            <Text style={[styles.rowCardLabel, { color: colors.text }]}>Confirm Attendance Delete</Text>
+          </View>
+          <Switch
+            value={settings.confirmAttendanceDelete}
+            onValueChange={(v) => updateSettings({ confirmAttendanceDelete: v })}
+            trackColor={{ false: colors.border, true: colors.primarySoft }}
+            thumbColor={settings.confirmAttendanceDelete ? colors.primary : colors.textMuted}
+          />
+        </View>
+        <View style={[styles.rowCard, { backgroundColor: colors.card, marginTop: 8 }]}>
+          <View style={styles.rowCardContent}>
+            <Ionicons name="star-outline" size={20} color={colors.textSecondary} style={{ marginRight: 12 }} />
+            <Text style={[styles.rowCardLabel, { color: colors.text }]}>Confirm Bonus Delete</Text>
+          </View>
+          <Switch
+            value={settings.confirmBonusDelete}
+            onValueChange={(v) => updateSettings({ confirmBonusDelete: v })}
+            trackColor={{ false: colors.border, true: colors.primarySoft }}
+            thumbColor={settings.confirmBonusDelete ? colors.primary : colors.textMuted}
+          />
+        </View>
 
         {/* ── ABOUT ───────────────────────────────────────── */}
         <Text style={[styles.group, { color: colors.textSecondary }]}>ABOUT</Text>
@@ -198,9 +209,48 @@ export default function SettingsScreen() {
           label="Sign Out"
           labelStyle={{ color: colors.red }}
           right={<Ionicons name="log-out-outline" size={20} color={colors.red} />}
-          onPress={handleSignOut}
+          onPress={() => setSignOutVisible(true)}
         />
       </ScrollView>
+
+      {/* ── Modals ──────────────────────────────────────────── */}
+      <ConfirmModal
+        visible={signOutVisible}
+        title="Sign Out"
+        message="Are you sure you want to sign out?"
+        confirmLabel="Sign Out"
+        destructive
+        onConfirm={() => { setSignOutVisible(false); signOut(); }}
+        onCancel={() => setSignOutVisible(false)}
+      />
+      <InputModal
+        visible={reqHoursVisible}
+        title="Required Hours"
+        message="Total hours to complete"
+        placeholder="e.g. 400"
+        initialValue={String(settings.requiredHours)}
+        keyboardType="number-pad"
+        onConfirm={(text) => {
+          setReqHoursVisible(false);
+          const n = parseInt(text, 10);
+          if (!isNaN(n) && n > 0) updateSettings({ requiredHours: n });
+        }}
+        onCancel={() => setReqHoursVisible(false)}
+      />
+      <InputModal
+        visible={maxHoursVisible}
+        title="Max Hours / Day"
+        message="Used for completion date estimate"
+        placeholder="e.g. 8"
+        initialValue={String(settings.maxHoursPerDay)}
+        keyboardType="decimal-pad"
+        onConfirm={(text) => {
+          setMaxHoursVisible(false);
+          const n = parseFloat(text);
+          if (!isNaN(n) && n > 0) updateSettings({ maxHoursPerDay: n });
+        }}
+        onCancel={() => setMaxHoursVisible(false)}
+      />
     </View>
   );
 }

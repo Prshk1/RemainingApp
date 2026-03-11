@@ -1,4 +1,4 @@
-﻿import React from "react";
+﻿import React, { useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,8 +7,12 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Header from "../components/Header";
 import StatCard from "../components/StatCard";
 import BonusItem from "../components/BonusItem";
+import SwipeableRow from "../components/SwipeableRow";
+import ConfirmModal from "../components/ConfirmModal";
+import AnimatedScreenContainer from "../components/AnimatedScreenContainer";
 import { useTheme } from "../context/ThemeContext";
 import { useBonus } from "../context/BonusContext";
+import { useAppSettings } from "../context/AppSettingsContext";
 import { RootStackParamList } from "../App";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -17,11 +21,22 @@ export default function BonusScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const navigation = useNavigation<NavProp>();
-  const { entries, totalApprovedHours } = useBonus();
+  const { entries, totalApprovedHours, deleteBonus } = useBonus();
+  const { settings, updateSettings } = useAppSettings();
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [dontAskAgain, setDontAskAgain] = useState(false);
+
+  function requestDelete(id: string) {
+    if (!settings.confirmBonusDelete) {
+      deleteBonus(id);
+    } else {
+      setDeleteTarget(id);
+    }
+  }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header title="Bonus Hours" />
+    <AnimatedScreenContainer style={{ backgroundColor: colors.background }}>
+      <Header title="Bonus Hours" titleIcon="star" />
       <FlatList
         data={entries}
         keyExtractor={(item) => item.id}
@@ -44,14 +59,35 @@ export default function BonusScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <BonusItem
-            title={item.title}
-            date={item.date}
-            hours={item.hours}
-            status={item.status as "Pending" | "Approved" | "Rejected"}
-            onPress={() => navigation.navigate("AddBonus", { bonusId: item.id })}
-          />
+          <SwipeableRow
+            onEdit={() => navigation.navigate("AddBonus", { bonusId: item.id })}
+            onDelete={() => requestDelete(item.id)}
+          >
+            <BonusItem
+              title={item.title}
+              date={item.date}
+              hours={item.hours}
+              status={item.status as "Pending" | "Approved" | "Rejected"}
+              onPress={() => navigation.navigate("AddBonus", { bonusId: item.id })}
+            />
+          </SwipeableRow>
         )}
+      />
+      <ConfirmModal
+        visible={deleteTarget !== null}
+        title="Delete Bonus"
+        message="Are you sure you want to delete this bonus entry?"
+        confirmLabel="Delete"
+        destructive
+        dontAskAgainLabel="Don't ask again for bonus"
+        dontAskAgainChecked={dontAskAgain}
+        onDontAskAgainChange={setDontAskAgain}
+        onConfirm={() => {
+          if (deleteTarget) deleteBonus(deleteTarget);
+          if (dontAskAgain) updateSettings({ confirmBonusDelete: false });
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
       />
       <TouchableOpacity
         style={[styles.fab, { bottom: insets.bottom + 20, backgroundColor: colors.primary }]}
@@ -60,7 +96,7 @@ export default function BonusScreen() {
       >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
-    </View>
+    </AnimatedScreenContainer>
   );
 }
 

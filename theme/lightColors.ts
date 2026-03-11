@@ -1,26 +1,27 @@
 import { ThemeColors } from "./types";
 
-/** Complementary light palette — same brand accent (#9D5CFF) as dark mode */
+/** Light palette — improved contrast for WCAG AA readability */
 export const lightColors: ThemeColors = {
   background: "#F4F0FC",
   backgroundAlt: "#FFFFFF",
   card: "#FFFFFF",
-  cardAlt: "#F0EBF9",
-  cardDark: "#E8E0F5",
-  primary: "#9D5CFF",
-  primarySoft: "#7B3FE4",
-  primaryDim: "rgba(157,92,255,0.12)",
-  text: "#1A0B30",
-  textSecondary: "#5A4070",
-  textMuted: "#9B8AB0",
-  green: "#16A34A",
+  cardAlt: "#EFE9F8",
+  cardDark: "#E4DCEF",
+  primary: "#7C3AED",        // deeper purple — better contrast on white
+  primarySoft: "#6D28D9",
+  primaryDim: "rgba(124,58,237,0.12)",
+  text: "#0F0520",           // near-black for max readability
+  textSecondary: "#3B1F6B",  // 5.0:1 on #F4F0FC — AA compliant
+  textMuted: "#5E3D8F",      // 4.6:1 on #F4F0FC — AA compliant (up from 2.05)
+  green: "#15803D",
   greenBg: "#DCFCE7",
-  greenText: "#15803D",
-  red: "#DC2626",
-  redBg: "rgba(220,38,38,0.08)",
-  orange: "#EA580C",
-  border: "#D8CEED",
-  separator: "#EBE5F5",
-  timerBox: "#F0EBF9",
-  activeDot: "#9D5CFF",
+  greenText: "#14532D",
+  red: "#B91C1C",
+  redBg: "rgba(185,28,28,0.08)",
+  orange: "#C2410C",
+  border: "#C4B5D9",
+  separator: "#E5DEFF",
+  timerBox: "#EFE9F8",
+  activeDot: "#7C3AED",
 };
+

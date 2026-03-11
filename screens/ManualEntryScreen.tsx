@@ -1,6 +1,6 @@
 ﻿import React, { useState } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView,
+  View, Text, TextInput, ScrollView, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform, Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,6 +9,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { useAttendance } from "../context/AttendanceContext";
 import { useAppSettings } from "../context/AppSettingsContext";
+import Header from "../components/Header";
 
 /**
  * Parse a time string in either 24h ("HH:MM") or 12h ("H:MM AM/PM") format.
@@ -94,14 +95,8 @@ export default function ManualEntryScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={[styles.container, { backgroundColor: colors.backgroundAlt, paddingTop: insets.top + 8 }]}>
-        <View style={styles.navbar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top:8,bottom:8,left:8,right:8 }}>
-            <Ionicons name="chevron-back" size={26} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.navTitle, { color: colors.text }]}>Manual Entry</Text>
-          <View style={{ width: 26 }} />
-        </View>
+      <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
+        <Header title="Manual Entry" titleIcon="pencil-outline" onBack={() => navigation.goBack()} />
 
         <ScrollView contentContainerStyle={[styles.inner, { paddingBottom: insets.bottom + 20 }]} showsVerticalScrollIndicator={false}>
           <View style={[styles.card, { backgroundColor: colors.card }]}>
@@ -128,8 +123,6 @@ export default function ManualEntryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  navbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, marginBottom: 8 },
-  navTitle: { fontSize: 17, fontWeight: "700" },
   inner: { paddingHorizontal: 16 },
   card: { borderRadius: 16, padding: 16, marginBottom: 16 },
   label: { fontSize: 13, fontWeight: "600", marginBottom: 6, marginTop: 4 },

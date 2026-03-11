@@ -42,7 +42,7 @@ export default function QRScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header title="QR Code" />
+      <Header title="QR Code" titleIcon="qr-code-outline" />
       <View style={[styles.content, { paddingBottom: insets.bottom + 80 }]}>
         {loading ? (
           <ActivityIndicator size="large" color={colors.primary} />
