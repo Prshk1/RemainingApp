@@ -102,4 +102,18 @@ export function initDB(): void {
       FOREIGN KEY(entry_id) REFERENCES attendance(id)
     );
   `);
+
+  // ── Data integrity: one active attendance record per user per date ──
+  // Soft-delete any duplicate active rows, keeping the most recently inserted.
+  db.runSync(`
+    UPDATE attendance SET deleted = 1
+    WHERE deleted = 0 AND rowid NOT IN (
+      SELECT MAX(rowid) FROM attendance WHERE deleted = 0 GROUP BY user_id, date
+    )
+  `);
+  // Partial unique index enforces the constraint going forward.
+  db.execSync(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_attendance_user_date_active
+     ON attendance(user_id, date) WHERE deleted = 0;`
+  );
 }

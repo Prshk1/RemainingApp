@@ -8,7 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import Header from "../components/Header";
 import ConfirmModal from "../components/ConfirmModal";
 import { useTheme } from "../context/ThemeContext";

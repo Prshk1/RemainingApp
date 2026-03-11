@@ -16,6 +16,18 @@ export interface AttendanceRow {
   deleted: number;
 }
 
+export function getAttendanceByDate(
+  userId: string,
+  date: string
+): AttendanceRow | null {
+  return (
+    openDB().getFirstSync<AttendanceRow>(
+      "SELECT * FROM attendance WHERE user_id = ? AND date = ? AND deleted = 0 ORDER BY created_at DESC LIMIT 1",
+      [userId, date]
+    ) ?? null
+  );
+}
+
 export function getAllAttendance(userId: string): AttendanceRow[] {
   return openDB().getAllSync<AttendanceRow>(
     "SELECT * FROM attendance WHERE user_id = ? AND deleted = 0 ORDER BY date DESC, created_at DESC",

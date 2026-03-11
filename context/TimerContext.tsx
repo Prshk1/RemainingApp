@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Alert } from "react-native";
 import { useAuth } from "./AuthContext";
 import { useAttendance } from "./AttendanceContext";
 import {
@@ -15,6 +16,8 @@ import {
 } from "../services/database/repositories/timer";
 import {
   insertAttendance,
+  getAttendanceByDate,
+  updateAttendance,
 } from "../services/database/repositories/attendance";
 import { generateId } from "../utils/generateId";
 
@@ -176,32 +179,55 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       is_active: 0,
     });
 
-    // Create attendance entry from timer session
-    if (startTime) {
-      const attendanceId = generateId();
-      const dateStr = startTime.toISOString().split("T")[0];
-      insertAttendance({
-        id: attendanceId,
-        user_id: user.id,
-        date: dateStr,
-        time_in: startTime.toISOString(),
-        time_out: endTimeStr,
-        break_minutes: totalBreak,
-        hours: parseFloat(netHours.toFixed(2)),
-        is_manual: 0,
-        note: null,
-      });
-      // Refresh attendance list immediately so the new entry appears
-      refreshAttendance();
-    }
+    // Capture before state reset so Alert callbacks can still reference them
+    const capturedStart = startTime;
 
+    // Reset timer state immediately so UI reflects idle
     setTimerState("idle");
     setSessionId(null);
     setStartTime(null);
     setElapsedSeconds(0);
     setBreakMinutes(0);
     breakStartRef.current = null;
-  }, [user, sessionId, timerState, elapsedSeconds, breakMinutes, startTime]);
+
+    // Create or update attendance entry
+    if (capturedStart) {
+      const dateStr = capturedStart.toISOString().split("T")[0];
+      const attendancePayload = {
+        time_in: capturedStart.toISOString(),
+        time_out: endTimeStr,
+        break_minutes: totalBreak,
+        hours: parseFloat(netHours.toFixed(2)),
+      };
+      const existing = getAttendanceByDate(user.id, dateStr);
+      if (existing) {
+        Alert.alert(
+          "Entry Already Exists",
+          `An attendance record for ${dateStr} already exists. Update it with this session?`,
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Update",
+              onPress: () => {
+                updateAttendance(existing.id, attendancePayload);
+                refreshAttendance();
+              },
+            },
+          ]
+        );
+      } else {
+        insertAttendance({
+          id: generateId(),
+          user_id: user.id,
+          date: dateStr,
+          ...attendancePayload,
+          is_manual: 0,
+          note: null,
+        });
+        refreshAttendance();
+      }
+    }
+  }, [user, sessionId, timerState, elapsedSeconds, breakMinutes, startTime, refreshAttendance]);
 
   const startBreak = useCallback(() => {
     if (timerState !== "running") return;

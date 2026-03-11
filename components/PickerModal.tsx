@@ -186,6 +186,7 @@ function DatePicker({
                 dp.cell,
                 selected && { backgroundColor: colors.primary, borderRadius: 20 },
                 !selected && todayCell && { borderWidth: 1.5, borderRadius: 20, borderColor: colors.primary },
+                selected && todayCell && { borderWidth: 2, borderColor: "rgba(255,255,255,0.45)" },
               ]}
               onPress={() => setDay(d)}
               activeOpacity={0.7}
@@ -224,7 +225,7 @@ const dp = StyleSheet.create({
   weekLabel: { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "600" },
   grid: { flexDirection: "row", flexWrap: "wrap" },
   cell: { width: `${100 / 7}%`, aspectRatio: 1, justifyContent: "center", alignItems: "center" },
-  cellText: { fontSize: 14 },
+  cellText: { fontSize: 14, includeFontPadding: false },
 });
 
 // ── ScrollColumn ──────────────────────────────────────────────────────────────

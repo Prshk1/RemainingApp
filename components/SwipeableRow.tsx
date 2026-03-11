@@ -151,6 +151,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
     alignItems: "center",
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
+    overflow: "hidden",
   },
   rightAction: {
     position: "absolute",
@@ -159,6 +162,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
     alignItems: "center",
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 14,
+    overflow: "hidden",
   },
   actionBtn: {
     width: "100%",

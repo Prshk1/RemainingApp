@@ -8,7 +8,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { useAttendance } from "../context/AttendanceContext";
+import { useAuth } from "../context/AuthContext";
 import { useAppSettings } from "../context/AppSettingsContext";
+import { getAttendanceByDate } from "../services/database/repositories/attendance";
 import Header from "../components/Header";
 import PickerModal from "../components/PickerModal";
 
@@ -27,7 +29,8 @@ export default function ManualEntryScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const navigation = useNavigation();
-  const { addEntry } = useAttendance();
+  const { addEntry, updateEntry } = useAttendance();
+  const { user } = useAuth();
   const { settings } = useAppSettings();
 
   const fmt = settings.timeFormat;
@@ -46,6 +49,33 @@ export default function ManualEntryScreen() {
 
   const lbl = [styles.label, { color: colors.textSecondary }];
 
+  async function doSave(existingId: string | null, hours: number) {
+    setSaving(true);
+    try {
+      if (existingId) {
+        await updateEntry(existingId, {
+          timeIn:  `${date}T${timeIn}:00`,
+          timeOut: `${date}T${timeOut}:00`,
+          breakMinutes: 0,
+          hours,
+          note: note.trim() || null,
+        });
+      } else {
+        await addEntry({
+          date,
+          timeIn:  `${date}T${timeIn}:00`,
+          timeOut: `${date}T${timeOut}:00`,
+          breakMinutes: 0,
+          hours,
+          isManual: true,
+          note: note.trim() || null,
+        });
+      }
+      navigation.goBack();
+    } catch { Alert.alert("Error", "Failed to save. Please try again."); }
+    finally { setSaving(false); }
+  }
+
   async function handleSave() {
     const [y, mo, d] = date.split("-").map(Number);
     const [inH, inM]   = timeIn.split(":").map(Number);
@@ -54,20 +84,21 @@ export default function ManualEntryScreen() {
     const end   = new Date(y, mo - 1, d, outH, outM).getTime();
     if (end <= start) { Alert.alert("Invalid Times", "Time out must be after time in"); return; }
     const hours = parseFloat(((end - start) / 3600000).toFixed(2));
-    setSaving(true);
-    try {
-      await addEntry({
-        date,
-        timeIn:  `${date}T${timeIn}:00`,
-        timeOut: `${date}T${timeOut}:00`,
-        breakMinutes: 0,
-        hours,
-        isManual: true,
-        note: note.trim() || null,
-      });
-      navigation.goBack();
-    } catch { Alert.alert("Error", "Failed to save. Please try again."); }
-    finally { setSaving(false); }
+
+    const existing = user ? getAttendanceByDate(user.id, date) : null;
+    if (existing) {
+      Alert.alert(
+        "Entry Already Exists",
+        `An attendance record for ${date} already exists. Would you like to update it instead?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Update Existing", onPress: () => doSave(existing.id, hours) },
+        ]
+      );
+      return;
+    }
+
+    await doSave(null, hours);
   }
 
   return (
