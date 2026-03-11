@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as MediaLibrary from "expo-media-library";
 import Header from "../components/Header";
@@ -45,12 +45,18 @@ export default function AttendanceDetailScreen() {
   const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
   const [deleteVisible, setDeleteVisible] = useState(false);
   const [photoIndex, setPhotoIndex] = useState<number | null>(null);
+  const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (entry) {
-      setAttachments(getAttachmentsByEntryId(entry.id));
-    }
-  }, [entry?.id]);
+  // Re-fetch attachments every time this screen comes into focus (e.g., after
+  // returning from JournalScreen where new photos may have been added).
+  useFocusEffect(
+    useCallback(() => {
+      if (entry) {
+        setAttachments(getAttachmentsByEntryId(entry.id));
+        setBrokenImages(new Set());
+      }
+    }, [entry?.id])
+  );
 
   function handleDelete() {
     setDeleteVisible(true);
@@ -168,15 +174,21 @@ export default function AttendanceDetailScreen() {
               {attachments.map((att, idx) => (
                 <TouchableOpacity
                   key={att.id}
-                  onPress={() => setPhotoIndex(idx)}
-                  activeOpacity={0.85}
+                  onPress={() => !brokenImages.has(att.id) && setPhotoIndex(idx)}
+                  activeOpacity={brokenImages.has(att.id) ? 1 : 0.85}
                 >
-                  <Image
-                    source={{ uri: att.file_uri }}
-                    style={styles.attachmentThumb}
-                    resizeMode="cover"
-                    onError={() => {}}
-                  />
+                  {brokenImages.has(att.id) ? (
+                    <View style={[styles.attachmentThumb, styles.brokenThumb]}>
+                      <Ionicons name="image-outline" size={28} color="rgba(255,255,255,0.35)" />
+                    </View>
+                  ) : (
+                    <Image
+                      source={{ uri: att.file_uri }}
+                      style={styles.attachmentThumb}
+                      resizeMode="cover"
+                      onError={() => setBrokenImages((prev) => new Set(prev).add(att.id))}
+                    />
+                  )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -231,7 +243,12 @@ export default function AttendanceDetailScreen() {
                 source={{ uri: attachments[photoIndex]?.file_uri }}
                 style={styles.viewerImage}
                 resizeMode="contain"
-                onError={() => {}}
+                onError={() => {
+                  if (photoIndex !== null) {
+                    setBrokenImages((prev) => new Set(prev).add(attachments[photoIndex].id));
+                    setPhotoIndex(null);
+                  }
+                }}
               />
 
               {/* counter */}
@@ -301,6 +318,7 @@ const styles = StyleSheet.create({
   noteLabel: { fontSize: 12, fontWeight: "600", marginBottom: 4, paddingHorizontal: 16, paddingTop: 12 },
   noteText: { fontSize: 14, lineHeight: 22, paddingHorizontal: 16, paddingBottom: 16 },
   attachmentThumb: { width: 110, height: 110, borderRadius: 10, marginRight: 10 },
+  brokenThumb: { backgroundColor: "rgba(255,255,255,0.08)", justifyContent: "center", alignItems: "center" },
   footer: { paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1 },
   journalBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderRadius: 14, height: 52, borderWidth: 1 },
   journalBtnText: { fontSize: 15, fontWeight: "700" },

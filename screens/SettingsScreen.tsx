@@ -8,6 +8,7 @@ import Header from "../components/Header";
 import SettingsRow from "../components/SettingsRow";
 import ConfirmModal from "../components/ConfirmModal";
 import InputModal from "../components/InputModal";
+import { TAB_BAR_HEIGHT } from "../components/CustomTabBar";
 import { useTheme } from "../context/ThemeContext";
 import { useAppSettings, WEEKDAYS } from "../context/AppSettingsContext";
 import { useAuth } from "../context/AuthContext";
@@ -57,7 +58,7 @@ export default function SettingsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header title="Settings" titleIcon="settings-outline" />
       <ScrollView
-        contentContainerStyle={[styles.inner, { paddingBottom: insets.bottom + 90 }]}
+        contentContainerStyle={[styles.inner, { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 20 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── APPEARANCE ──────────────────────────────────── */}
@@ -194,11 +195,30 @@ export default function SettingsScreen() {
             thumbColor={settings.confirmBonusDelete ? colors.primary : colors.textMuted}
           />
         </View>
+        <View style={[styles.rowCard, { backgroundColor: colors.card, marginTop: 8 }]}>
+          <View style={styles.rowCardContent}>
+            <Ionicons name="swap-horizontal-outline" size={20} color={colors.textSecondary} style={{ marginRight: 12 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowCardLabel, { color: colors.text }]}>Invert Swipe Direction</Text>
+              <Text style={[styles.rowCardSub, { color: colors.textMuted }]}>
+                {settings.invertSwipeDirection
+                  ? "Left = Edit · Right = Delete"
+                  : "Left = Delete · Right = Edit"}
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={settings.invertSwipeDirection ?? false}
+            onValueChange={(v) => updateSettings({ invertSwipeDirection: v })}
+            trackColor={{ false: colors.border, true: colors.primarySoft }}
+            thumbColor={(settings.invertSwipeDirection ?? false) ? colors.primary : colors.textMuted}
+          />
+        </View>
 
         {/* ── ABOUT ───────────────────────────────────────── */}
         <Text style={[styles.group, { color: colors.textSecondary }]}>ABOUT</Text>
         <SettingsRow
-          label="About RemainingApp"
+          label="About Remaining"
           right={<Ionicons name="chevron-forward" size={18} color={colors.textMuted} />}
           onPress={() => navigation.navigate("About")}
         />
@@ -267,6 +287,7 @@ const styles = StyleSheet.create({
   rowCard: { borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   rowCardContent: { flexDirection: "row", alignItems: "center" },
   rowCardLabel: { fontSize: 15 },
+  rowCardSub: { fontSize: 11, marginTop: 2 },
   // Work days
   presetRow: { flexDirection: "row", gap: 8, marginBottom: 10 },
   presetBtn: { borderRadius: 10, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 7 },

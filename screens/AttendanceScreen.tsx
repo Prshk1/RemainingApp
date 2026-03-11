@@ -10,6 +10,7 @@ import AttendanceCard from "../components/AttendanceCard";
 import SwipeableRow from "../components/SwipeableRow";
 import ConfirmModal from "../components/ConfirmModal";
 import AnimatedScreenContainer from "../components/AnimatedScreenContainer";
+import { TAB_BAR_HEIGHT } from "../components/CustomTabBar";
 import { useTheme } from "../context/ThemeContext";
 import { useAttendance } from "../context/AttendanceContext";
 import { useAppSettings } from "../context/AppSettingsContext";
@@ -46,7 +47,7 @@ export default function AttendanceScreen() {
         data={entries}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 20 }]}
         ListHeaderComponent={
           <>
             <View style={styles.statRow}>

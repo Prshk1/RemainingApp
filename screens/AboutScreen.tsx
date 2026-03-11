@@ -51,7 +51,7 @@ export default function AboutScreen() {
           <View style={[styles.logoBox, { backgroundColor: colors.primaryDim }]}>
             <Ionicons name="time-outline" size={42} color={colors.primary} />
           </View>
-          <Text style={[styles.appName, { color: colors.text }]}>RemainingApp</Text>
+          <Text style={[styles.appName, { color: colors.text }]}>Remaining</Text>
           <Text style={[styles.appTagline, { color: colors.textSecondary }]}>
             Track your internship hours, goals, and journal — all offline.
           </Text>

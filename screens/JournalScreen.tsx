@@ -40,6 +40,7 @@ export default function JournalScreen() {
   const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
+  const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
 
   // Load existing attachments for this entry
   useEffect(() => {
@@ -152,7 +153,18 @@ export default function JournalScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailRow}>
                 {attachments.map((att) => (
                   <View key={att.id} style={styles.thumbWrap}>
-                    <Image source={{ uri: att.file_uri }} style={styles.thumbnail} resizeMode="cover" onError={() => {}} />
+                    {brokenImages.has(att.id) ? (
+                      <View style={[styles.thumbnail, styles.brokenThumbnail]}>
+                        <Ionicons name="image-outline" size={22} color="rgba(255,255,255,0.3)" />
+                      </View>
+                    ) : (
+                      <Image
+                        source={{ uri: att.file_uri }}
+                        style={styles.thumbnail}
+                        resizeMode="cover"
+                        onError={() => setBrokenImages((prev) => new Set(prev).add(att.id))}
+                      />
+                    )}
                     <TouchableOpacity
                       style={[styles.removeBtn, { backgroundColor: colors.red }]}
                       onPress={() => removeAttachment(att.id)}
@@ -223,6 +235,7 @@ const styles = StyleSheet.create({
   thumbnailRow: { flexDirection: "row" },
   thumbWrap: { position: "relative", marginRight: 10 },
   thumbnail: { width: 100, height: 100, borderRadius: 12 },
+  brokenThumbnail: { backgroundColor: "rgba(255,255,255,0.08)", justifyContent: "center", alignItems: "center" },
   removeBtn: { position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   emptyPhotoArea: { borderWidth: 1.5, borderStyle: "dashed", borderRadius: 16, height: 90, justifyContent: "center", alignItems: "center", gap: 6 },
   emptyPhotoText: { fontSize: 13 },

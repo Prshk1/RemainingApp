@@ -14,6 +14,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ProgressRing from "../components/ProgressRing";
 import QuickActionCard from "../components/QuickActionCard";
 import AnimatedScreenContainer from "../components/AnimatedScreenContainer";
+import { TAB_BAR_HEIGHT } from "../components/CustomTabBar";
 import { useTheme } from "../context/ThemeContext";
 import { useTimer } from "../context/TimerContext";
 import { useAttendance } from "../context/AttendanceContext";
@@ -71,7 +72,7 @@ export default function DashboardScreen() {
     <AnimatedScreenContainer>
       <ScrollView
         style={[styles.scroll, { backgroundColor: colors.backgroundAlt }]}
-        contentContainerStyle={[styles.container, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 90 }]}
+        contentContainerStyle={[styles.container, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 20 }]}
         showsVerticalScrollIndicator={false}
       >
       {/* Header */}

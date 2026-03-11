@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "RemainingApp",
-    "slug": "RemainingApp",
+    "name": "Remaining",
+    "slug": "remaining",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Remaining Logo.png",
+    "icon": "./assets/Remaining Logo(BlackBG)-02.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/Remaining Logo.png",
+      "image": "./assets/Remaining Logo(BlackBG)-02.png",
       "resizeMode": "contain",
       "backgroundColor": "#0B0616"
     },
@@ -17,12 +17,12 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0B0616",
-        "foregroundImage": "./assets/Remaining Logo.png"
+        "foregroundImage": "./assets/Remaining Logo(BlackBG)-02.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/Remaining Logo.png"
+      "favicon": "./assets/Remaining Logo(BlackBG)-02.png"
     },
     "extra": {
       "eas": {

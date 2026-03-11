@@ -27,6 +27,8 @@ export interface AppSettings {
   /** Per-list delete confirmation preferences */
   confirmAttendanceDelete: boolean;
   confirmBonusDelete: boolean;
+  /** Invert swipe direction: when true, swipe left = Edit, swipe right = Delete */
+  invertSwipeDirection: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -37,6 +39,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   timeFormat: "12h",
   confirmAttendanceDelete: true,
   confirmBonusDelete: true,
+  invertSwipeDirection: false,
 };
 
 interface AppSettingsContextValue {

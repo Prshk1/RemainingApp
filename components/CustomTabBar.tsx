@@ -23,8 +23,14 @@ import { motion } from "../theme/motion";
 
 const { width } = Dimensions.get("window");
 const NOTCH_RADIUS = 34;        // half of QR button
-const NOTCH_DEPTH  = 14;        // how far the notch dips into the bar
 const BAR_HEIGHT   = 58;
+
+// How much of the QR button protrudes above the bar surface.
+// 1/4 of the button diameter = NOTCH_RADIUS / 2
+const QR_PROTRUSION = Math.round(NOTCH_RADIUS / 2); // ~17px
+
+/** Exported so screens can calculate safe bottom padding: tabBarHeight + insets.bottom */
+export const TAB_BAR_HEIGHT = BAR_HEIGHT;
 
 /** Animated tab icon that scales up when active */
 function TabIcon({ name, active, color }: { name: keyof typeof Ionicons.glyphMap; active: boolean; color: string }) {
@@ -113,7 +119,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   const qrActive = state.index === 2;
 
   return (
-    <View style={[styles.wrapper, { backgroundColor: "transparent", paddingBottom: insets.bottom }]}>
+    <View style={[styles.wrapper, { backgroundColor: colors.card, paddingBottom: insets.bottom }]}>
       {/* Bar surface */}
       <View
         style={[
@@ -170,6 +176,10 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 const NOTCH_BTN_SIZE = NOTCH_RADIUS * 2;
 const NOTCH_RING_SIZE = NOTCH_BTN_SIZE + 8;
 
+// Position the QR ring so exactly QR_PROTRUSION pixels of the button show above the bar.
+// Ring top = -(protrusion + half the margin between ring and button)
+const NOTCH_TOP = -(QR_PROTRUSION + (NOTCH_RING_SIZE - NOTCH_BTN_SIZE) / 2);
+
 const styles = StyleSheet.create({
   wrapper: {
     position: "absolute",
@@ -206,7 +216,7 @@ const styles = StyleSheet.create({
   },
   notchBtnWrap: {
     position: "absolute",
-    top: -(NOTCH_RING_SIZE / 2 + NOTCH_DEPTH),
+    top: NOTCH_TOP,
     left: 0,
     right: 0,
     alignItems: "center",

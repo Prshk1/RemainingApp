@@ -10,6 +10,7 @@ import BonusItem from "../components/BonusItem";
 import SwipeableRow from "../components/SwipeableRow";
 import ConfirmModal from "../components/ConfirmModal";
 import AnimatedScreenContainer from "../components/AnimatedScreenContainer";
+import { TAB_BAR_HEIGHT } from "../components/CustomTabBar";
 import { useTheme } from "../context/ThemeContext";
 import { useBonus } from "../context/BonusContext";
 import { useAppSettings } from "../context/AppSettingsContext";
@@ -41,7 +42,7 @@ export default function BonusScreen() {
         data={entries}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 20 }]}
         ListHeaderComponent={
           <>
             <View style={styles.statRow}>
