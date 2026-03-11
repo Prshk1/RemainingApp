@@ -6,7 +6,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Alert } from "react-native";
 import { useAuth } from "./AuthContext";
 import { useAttendance } from "./AttendanceContext";
 import {
@@ -23,6 +22,17 @@ import { generateId } from "../utils/generateId";
 
 export type TimerState = "idle" | "running" | "break" | "completed";
 
+export interface AttendanceConfirmation {
+  existingId: string;
+  dateStr: string;
+  payload: {
+    time_in: string;
+    time_out: string;
+    break_minutes: number;
+    hours: number;
+  };
+}
+
 interface TimerContextValue {
   timerState: TimerState;
   sessionId: string | null;
@@ -37,6 +47,12 @@ interface TimerContextValue {
   timeOut: () => void;
   startBreak: () => void;
   endBreak: () => void;
+  /** Pending attendance confirmation (for duplicate entry) */
+  pendingConfirmation: AttendanceConfirmation | null;
+  /** Confirm and update existing attendance */
+  confirmAttendanceUpdate: (confirmation: AttendanceConfirmation) => void;
+  /** Cancel pending confirmation */
+  cancelAttendanceConfirmation: () => void;
 }
 
 const TimerContext = createContext<TimerContextValue>({
@@ -52,6 +68,9 @@ const TimerContext = createContext<TimerContextValue>({
   timeOut: () => {},
   startBreak: () => {},
   endBreak: () => {},
+  pendingConfirmation: null,
+  confirmAttendanceUpdate: () => {},
+  cancelAttendanceConfirmation: () => {},
 });
 
 export function TimerProvider({ children }: { children: React.ReactNode }) {
@@ -62,6 +81,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [breakMinutes, setBreakMinutes] = useState(0);
+  const [pendingConfirmation, setPendingConfirmation] = useState<AttendanceConfirmation | null>(null);
   const breakStartRef = useRef<Date | null>(null);
   const lunchAutoBreakApplied = useRef(false);
 
@@ -201,20 +221,12 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       };
       const existing = getAttendanceByDate(user.id, dateStr);
       if (existing) {
-        Alert.alert(
-          "Entry Already Exists",
-          `An attendance record for ${dateStr} already exists. Update it with this session?`,
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Update",
-              onPress: () => {
-                updateAttendance(existing.id, attendancePayload);
-                refreshAttendance();
-              },
-            },
-          ]
-        );
+        // Set pending confirmation instead of showing Alert
+        setPendingConfirmation({
+          existingId: existing.id,
+          dateStr,
+          payload: attendancePayload,
+        });
       } else {
         insertAttendance({
           id: generateId(),
@@ -239,6 +251,19 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     endBreakInternal();
   }, [timerState, endBreakInternal]);
 
+  const confirmAttendanceUpdate = useCallback(
+    (confirmation: AttendanceConfirmation) => {
+      updateAttendance(confirmation.existingId, confirmation.payload);
+      refreshAttendance();
+      setPendingConfirmation(null);
+    },
+    [refreshAttendance]
+  );
+
+  const cancelAttendanceConfirmation = useCallback(() => {
+    setPendingConfirmation(null);
+  }, []);
+
   const totalSecs = elapsedSeconds;
   const displayHours = Math.floor(totalSecs / 3600);
   const displayMins = Math.floor((totalSecs % 3600) / 60);
@@ -259,6 +284,9 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         timeOut,
         startBreak,
         endBreak,
+        pendingConfirmation,
+        confirmAttendanceUpdate,
+        cancelAttendanceConfirmation,
       }}
     >
       {children}

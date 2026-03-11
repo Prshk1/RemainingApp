@@ -14,6 +14,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import { useTheme } from "../context/ThemeContext";
 import { useAttendance } from "../context/AttendanceContext";
 import { useAuth } from "../context/AuthContext";
+import { useNotification } from "../context/NotificationContext";
 import {
   getAttachmentsByEntryId,
   insertAttachment,
@@ -35,6 +36,7 @@ export default function JournalScreen() {
   const route = useRoute<RoutePropType>();
   const { entries, updateEntry } = useAttendance();
   const { user } = useAuth();
+  const { showNotification } = useNotification();
   const entry = entries.find((e) => e.id === route.params.entryId);
 
   const [note, setNote] = useState(entry?.note ?? "");
@@ -52,27 +54,43 @@ export default function JournalScreen() {
 
   async function pickImage() {
     if (attachments.length >= MAX_ATTACHMENTS) {
-      const { Alert } = await import("react-native");
-      Alert.alert("Limit reached", `You can attach up to ${MAX_ATTACHMENTS} photos per entry.`);
+      showNotification({
+        type: "warning",
+        title: "Limit reached",
+        message: `You can attach up to ${MAX_ATTACHMENTS} photos per entry.`,
+        duration: 6000,
+      });
       return;
     }
 
     if (!entry) {
-      const { Alert } = await import("react-native");
-      Alert.alert("Error", "No attendance entry found. Please try again.");
+      showNotification({
+        type: "error",
+        title: "Error",
+        message: "No attendance entry found. Please try again.",
+        duration: 6000,
+      });
       return;
     }
     if (!user) {
-      const { Alert } = await import("react-native");
-      Alert.alert("Sign-in required", "Please sign in to attach photos.");
+      showNotification({
+        type: "warning",
+        title: "Sign-in required",
+        message: "Please sign in to attach photos.",
+        duration: 6000,
+      });
       return;
     }
 
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        const { Alert } = await import("react-native");
-        Alert.alert("Permission required", "Please allow access to your photo library in Settings.");
+        showNotification({
+          type: "warning",
+          title: "Permission required",
+          message: "Please allow access to your photo library in Settings.",
+          duration: 6000,
+        });
         return;
       }
 
@@ -112,8 +130,12 @@ export default function JournalScreen() {
       // Refresh from DB to confirm insertion, then update local state
       setAttachments(getAttachmentsByEntryId(entry.id));
     } catch (err: any) {
-      const { Alert } = await import("react-native");
-      Alert.alert("Could not add photo", err?.message ?? "An unexpected error occurred. Please try again.");
+      showNotification({
+        type: "error",
+        title: "Could not add photo",
+        message: err?.message ?? "An unexpected error occurred. Please try again.",
+        duration: 6000,
+      });
     }
   }
 

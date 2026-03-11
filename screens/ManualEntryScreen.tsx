@@ -1,7 +1,7 @@
 ﻿import React, { useState } from "react";
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform, Alert,
+  StyleSheet, KeyboardAvoidingView, Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,9 +10,11 @@ import { useTheme } from "../context/ThemeContext";
 import { useAttendance } from "../context/AttendanceContext";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings } from "../context/AppSettingsContext";
+import { useNotification } from "../context/NotificationContext";
 import { getAttendanceByDate } from "../services/database/repositories/attendance";
 import Header from "../components/Header";
 import PickerModal from "../components/PickerModal";
+import ConfirmModal from "../components/ConfirmModal";
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
 
@@ -32,6 +34,7 @@ export default function ManualEntryScreen() {
   const { addEntry, updateEntry } = useAttendance();
   const { user } = useAuth();
   const { settings } = useAppSettings();
+  const { showNotification } = useNotification();
 
   const fmt = settings.timeFormat;
   const today = new Date().toISOString().slice(0, 10);
@@ -42,12 +45,20 @@ export default function ManualEntryScreen() {
   const [timeOut, setTimeOut] = useState("17:00");
   const [note, setNote]       = useState("");
   const [saving, setSaving]   = useState(false);
+  const [confirmingEntry, setConfirmingEntry] = useState<{ existingId: string, hours: number } | null>(null);
 
   const [showDate, setShowDate]       = useState(false);
   const [showTimeIn, setShowTimeIn]   = useState(false);
   const [showTimeOut, setShowTimeOut] = useState(false);
 
   const lbl = [styles.label, { color: colors.textSecondary }];
+
+  function handleConfirmExistingEntry() {
+    if (confirmingEntry) {
+      doSave(confirmingEntry.existingId, confirmingEntry.hours);
+      setConfirmingEntry(null);
+    }
+  }
 
   async function doSave(existingId: string | null, hours: number) {
     setSaving(true);
@@ -72,7 +83,14 @@ export default function ManualEntryScreen() {
         });
       }
       navigation.goBack();
-    } catch { Alert.alert("Error", "Failed to save. Please try again."); }
+    } catch {
+      showNotification({
+        type: "error",
+        title: "Error",
+        message: "Failed to save. Please try again.",
+        duration: 6000,
+      });
+    }
     finally { setSaving(false); }
   }
 
@@ -82,7 +100,15 @@ export default function ManualEntryScreen() {
     const [outH, outM] = timeOut.split(":").map(Number);
     const start = new Date(y, mo - 1, d, inH, inM).getTime();
     const end   = new Date(y, mo - 1, d, outH, outM).getTime();
-    if (end <= start) { Alert.alert("Invalid Times", "Time out must be after time in"); return; }
+    if (end <= start) {
+      showNotification({
+        type: "error",
+        title: "Invalid Times",
+        message: "Time out must be after time in",
+        duration: 6000,
+      });
+      return;
+    }
     let hours = parseFloat(((end - start) / 3600000).toFixed(2));
     // Deduct a fixed 1 hour whenever the shift crosses the 12:00–13:00 lunch window
     const lunchStart = new Date(y, mo - 1, d, 12, 0).getTime();
@@ -93,14 +119,7 @@ export default function ManualEntryScreen() {
 
     const existing = user ? getAttendanceByDate(user.id, date) : null;
     if (existing) {
-      Alert.alert(
-        "Entry Already Exists",
-        `An attendance record for ${date} already exists. Would you like to update it instead?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Update Existing", onPress: () => doSave(existing.id, hours) },
-        ]
-      );
+      setConfirmingEntry({ existingId: existing.id, hours });
       return;
     }
 
@@ -108,7 +127,17 @@ export default function ManualEntryScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <>
+      <ConfirmModal
+        visible={confirmingEntry !== null}
+        title="Entry Already Exists"
+        message={`An attendance record for ${date} already exists. Would you like to update it instead?`}
+        confirmLabel="Update Existing"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmExistingEntry}
+        onCancel={() => setConfirmingEntry(null)}
+      />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
         <Header title="Manual Entry" titleIcon="pencil-outline" onBack={() => navigation.goBack()} />
 
@@ -191,6 +220,7 @@ export default function ManualEntryScreen() {
         </View>
       </View>
     </KeyboardAvoidingView>
+    </>
   );
 }
 

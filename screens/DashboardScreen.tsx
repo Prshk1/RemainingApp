@@ -14,12 +14,14 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ProgressRing from "../components/ProgressRing";
 import QuickActionCard from "../components/QuickActionCard";
 import AnimatedScreenContainer from "../components/AnimatedScreenContainer";
+import ConfirmModal from "../components/ConfirmModal";
 import { TAB_BAR_HEIGHT } from "../components/CustomTabBar";
 import { useTheme } from "../context/ThemeContext";
 import { useTimer } from "../context/TimerContext";
 import { useAttendance } from "../context/AttendanceContext";
 import { useBonus } from "../context/BonusContext";
 import { useAppSettings } from "../context/AppSettingsContext";
+import { useNotification } from "../context/NotificationContext";
 import { formatTime, getDayName } from "../utils/formatTime";
 import { RootStackParamList } from "../App";
 
@@ -53,10 +55,11 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const navigation = useNavigation<NavProp>();
-  const { timerState, startTime, displayHours, displayMins, displaySecs, timeIn, timeOut, startBreak, endBreak } = useTimer();
+  const { timerState, startTime, displayHours, displayMins, displaySecs, timeIn, timeOut, startBreak, endBreak, pendingConfirmation, confirmAttendanceUpdate, cancelAttendanceConfirmation } = useTimer();
   const { totalHours } = useAttendance();
   const { totalApprovedHours } = useBonus();
   const { settings } = useAppSettings();
+  const { showNotification } = useNotification();
 
   const completed = totalHours + totalApprovedHours;
   const required = settings.requiredHours;
@@ -68,8 +71,30 @@ export default function DashboardScreen() {
   const isRunning = timerState === "running";
   const isBreak = timerState === "break";
 
+  function handleConfirmAttendanceUpdate() {
+    if (pendingConfirmation) {
+      confirmAttendanceUpdate(pendingConfirmation);
+      showNotification({
+        type: "success",
+        title: "Entry Updated",
+        message: "Attendance record has been updated successfully.",
+        duration: 4000,
+      });
+    }
+  }
+
   return (
-    <AnimatedScreenContainer>
+    <>
+      <ConfirmModal
+        visible={pendingConfirmation !== null}
+        title="Entry Already Exists"
+        message={`An attendance record for ${pendingConfirmation?.dateStr} already exists. Update it with this session?`}
+        confirmLabel="Update"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmAttendanceUpdate}
+        onCancel={cancelAttendanceConfirmation}
+      />
+      <AnimatedScreenContainer>
       <ScrollView
         style={[styles.scroll, { backgroundColor: colors.backgroundAlt }]}
         contentContainerStyle={[styles.container, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 20 }]}
@@ -197,6 +222,7 @@ export default function DashboardScreen() {
       </View>
     </ScrollView>
     </AnimatedScreenContainer>
+    </>
   );
 }
 
