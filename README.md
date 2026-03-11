@@ -1,6 +1,8 @@
 # Remaining
 
-![Remaining logo](assets/Remaining%20Logo(BlackBG)-02.png)
+<p align="center">
+	<img src="assets/Remaining%20Logo(BlackBG)-02.png" alt="Remaining logo" width="220" />
+</p>
 
 Remaining is an Expo-powered React Native app for tracking progress toward a fixed work-hour goal. It combines attendance logging, an active session timer, bonus-hour tracking, and journal attachments in an offline-first mobile experience.
 
