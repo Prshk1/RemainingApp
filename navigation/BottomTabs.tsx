@@ -40,6 +40,7 @@ export default function BottomTabs() {
 
   return (
     <Tab.Navigator
+      initialRouteName="Dashboard"
       screenOptions={{
         headerShown: false,
         tabBarStyle: {

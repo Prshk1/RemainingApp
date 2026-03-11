@@ -80,7 +80,7 @@ export default function AddBonusScreen() {
         title: title.trim(),
         date,
         hours: parsedHours,
-        status: "Pending",
+        status: "Approved", // Self-use app: no admin approval needed
         note: note.trim() || null,
       });
     }
@@ -152,7 +152,7 @@ export default function AddBonusScreen() {
           <View style={styles.infoCard}>
             <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
             <Text style={styles.infoText}>
-              New entries start as <Text style={{ fontWeight: "700" }}>Pending</Text>. An admin can approve them to count toward your total.
+              Bonus hours are <Text style={{ fontWeight: "700" }}>automatically approved</Text> and count toward your total immediately.
             </Text>
           </View>
         </ScrollView>

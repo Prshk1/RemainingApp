@@ -8,17 +8,32 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { useAttendance } from "../context/AttendanceContext";
+import { useAppSettings } from "../context/AppSettingsContext";
 
-function parseHours(dateStr: string, inStr: string, outStr: string): number | null {
-  try {
-    const [y, m, d] = dateStr.split("-").map(Number);
-    const [inH, inM] = inStr.split(":").map(Number);
-    const [outH, outM] = outStr.split(":").map(Number);
-    const start = new Date(y, m - 1, d, inH, inM).getTime();
-    const end = new Date(y, m - 1, d, outH, outM).getTime();
-    if (end <= start) return null;
-    return parseFloat(((end - start) / 3600000).toFixed(2));
-  } catch { return null; }
+/**
+ * Parse a time string in either 24h ("HH:MM") or 12h ("H:MM AM/PM") format.
+ * Returns "HH:MM" (24h) for internal storage, or null if invalid.
+ */
+function parseTimeInput(input: string, format: "12h" | "24h"): string | null {
+  const trimmed = input.trim();
+  if (format === "24h") {
+    if (/^\d{1,2}:\d{2}$/.test(trimmed)) {
+      const [h, m] = trimmed.split(":").map(Number);
+      if (h >= 0 && h <= 23 && m >= 0 && m <= 59)
+        return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
+    return null;
+  }
+  // 12h: "8:00 AM", "12:30 PM" etc.
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const ampm = match[3].toUpperCase();
+  if (h < 1 || h > 12 || m < 0 || m > 59) return null;
+  if (ampm === "PM" && h !== 12) h += 12;
+  if (ampm === "AM" && h === 12) h = 0;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 export default function ManualEntryScreen() {
@@ -26,11 +41,17 @@ export default function ManualEntryScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const { addEntry } = useAttendance();
+  const { settings } = useAppSettings();
+
+  const fmt = settings.timeFormat;
+  const timePlaceholder = fmt === "12h" ? "08:00 AM" : "08:00";
+  const timeOutPlaceholder = fmt === "12h" ? "05:00 PM" : "17:00";
+  const timeLabel = fmt === "12h" ? "(12h — e.g. 08:00 AM)" : "(24h — e.g. 14:30)";
 
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
-  const [timeIn, setTimeIn] = useState("08:00");
-  const [timeOut, setTimeOut] = useState("17:00");
+  const [timeIn, setTimeIn] = useState(fmt === "12h" ? "08:00 AM" : "08:00");
+  const [timeOut, setTimeOut] = useState(fmt === "12h" ? "05:00 PM" : "17:00");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -41,17 +62,26 @@ export default function ManualEntryScreen() {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       Alert.alert("Invalid Date", "Please enter date as YYYY-MM-DD"); return;
     }
-    if (!/^\d{2}:\d{2}$/.test(timeIn) || !/^\d{2}:\d{2}$/.test(timeOut)) {
-      Alert.alert("Invalid Time", "Please enter times as HH:MM (24-hour)"); return;
+    const parsedIn = parseTimeInput(timeIn, fmt);
+    const parsedOut = parseTimeInput(timeOut, fmt);
+    if (!parsedIn || !parsedOut) {
+      const hint = fmt === "12h" ? "e.g. 08:00 AM or 05:00 PM" : "e.g. 08:00 or 17:00";
+      Alert.alert("Invalid Time", `Please enter times as ${hint}`); return;
     }
-    const hours = parseHours(date, timeIn, timeOut);
-    if (hours === null) { Alert.alert("Invalid Times", "Time out must be after time in"); return; }
+    // Calculate hours from 24h strings
+    const [y, mo, d] = date.split("-").map(Number);
+    const [inH, inM] = parsedIn.split(":").map(Number);
+    const [outH, outM] = parsedOut.split(":").map(Number);
+    const start = new Date(y, mo - 1, d, inH, inM).getTime();
+    const end = new Date(y, mo - 1, d, outH, outM).getTime();
+    if (end <= start) { Alert.alert("Invalid Times", "Time out must be after time in"); return; }
+    const hours = parseFloat(((end - start) / 3600000).toFixed(2));
     setSaving(true);
     try {
       await addEntry({
         date,
-        timeIn: `${date}T${timeIn}:00`,
-        timeOut: `${date}T${timeOut}:00`,
+        timeIn: `${date}T${parsedIn}:00`,
+        timeOut: `${date}T${parsedOut}:00`,
         breakMinutes: 0,
         hours,
         isManual: true,
@@ -77,10 +107,10 @@ export default function ManualEntryScreen() {
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <Text style={lbl}>Date (YYYY-MM-DD)</Text>
             <TextInput style={inp} placeholder="2024-01-15" placeholderTextColor={colors.textMuted} value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" />
-            <Text style={lbl}>Time In (HH:MM, 24h)</Text>
-            <TextInput style={inp} placeholder="08:00" placeholderTextColor={colors.textMuted} value={timeIn} onChangeText={setTimeIn} keyboardType="numbers-and-punctuation" />
-            <Text style={lbl}>Time Out (HH:MM, 24h)</Text>
-            <TextInput style={inp} placeholder="17:00" placeholderTextColor={colors.textMuted} value={timeOut} onChangeText={setTimeOut} keyboardType="numbers-and-punctuation" />
+            <Text style={lbl}>Time In {timeLabel}</Text>
+            <TextInput style={inp} placeholder={timePlaceholder} placeholderTextColor={colors.textMuted} value={timeIn} onChangeText={setTimeIn} keyboardType="numbers-and-punctuation" />
+            <Text style={lbl}>Time Out {timeLabel}</Text>
+            <TextInput style={inp} placeholder={timeOutPlaceholder} placeholderTextColor={colors.textMuted} value={timeOut} onChangeText={setTimeOut} keyboardType="numbers-and-punctuation" />
             <Text style={lbl}>Note (optional)</Text>
             <TextInput style={[inp, styles.noteInput]} placeholder="Any notes..." placeholderTextColor={colors.textMuted} value={note} onChangeText={setNote} multiline textAlignVertical="top" />
           </View>

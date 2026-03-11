@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { useAuth } from "./AuthContext";
+import { useAttendance } from "./AttendanceContext";
 import {
   getActiveTimer,
   insertTimerSession,
@@ -52,6 +53,7 @@ const TimerContext = createContext<TimerContextValue>({
 
 export function TimerProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { refresh: refreshAttendance } = useAttendance();
   const [timerState, setTimerState] = useState<TimerState>("idle");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<Date | null>(null);
@@ -189,6 +191,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         is_manual: 0,
         note: null,
       });
+      // Refresh attendance list immediately so the new entry appears
+      refreshAttendance();
     }
 
     setTimerState("idle");

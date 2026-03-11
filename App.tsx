@@ -24,6 +24,7 @@ import ManualEntryScreen from "./screens/ManualEntryScreen";
 import AddBonusScreen from "./screens/AddBonusScreen";
 import AttendanceDetailScreen from "./screens/AttendanceDetailScreen";
 import JournalScreen from "./screens/JournalScreen";
+import AboutScreen from "./screens/AboutScreen";
 
 // Initialise SQLite at module load — synchronous, no async needed
 initDB();
@@ -42,6 +43,7 @@ export type RootStackParamList = {
   AddBonus: { bonusId?: string } | undefined;
   AttendanceDetail: { entryId: string };
   Journal: { entryId: string };
+  About: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -86,8 +88,8 @@ function AppNavigator() {
 
   return (
     <AppSettingsProvider>
-      <TimerProvider>
-        <AttendanceProvider>
+      <AttendanceProvider>
+        <TimerProvider>
           <BonusProvider>
             <Stack.Navigator
               screenOptions={{ headerShown: false }}
@@ -117,10 +119,15 @@ function AppNavigator() {
                 component={JournalScreen}
                 options={{ presentation: "card" }}
               />
+              <Stack.Screen
+                name="About"
+                component={AboutScreen}
+                options={{ presentation: "card" }}
+              />
             </Stack.Navigator>
           </BonusProvider>
-        </AttendanceProvider>
-      </TimerProvider>
+        </TimerProvider>
+      </AttendanceProvider>
     </AppSettingsProvider>
   );
 }

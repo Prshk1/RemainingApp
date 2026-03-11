@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -7,6 +7,10 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../context/ThemeContext";
 import { useAttendance } from "../context/AttendanceContext";
 import { useAppSettings } from "../context/AppSettingsContext";
+import {
+  getAttachmentsByEntryId,
+  AttachmentRow,
+} from "../services/database/repositories/attachments";
 import { RootStackParamList } from "../App";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -21,6 +25,13 @@ export default function AttendanceDetailScreen() {
   const { settings } = useAppSettings();
 
   const entry = entries.find((e) => e.id === route.params.entryId);
+  const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
+
+  useEffect(() => {
+    if (entry) {
+      setAttachments(getAttachmentsByEntryId(entry.id));
+    }
+  }, [entry?.id]);
 
   function handleDelete() {
     Alert.alert("Delete Entry", "Are you sure you want to delete this entry?", [
@@ -107,6 +118,24 @@ export default function AttendanceDetailScreen() {
             <Text style={[styles.noteText, { color: colors.text }]}>{entry.note}</Text>
           </View>
         ) : null}
+
+        {attachments.length > 0 && (
+          <View style={[styles.card, { backgroundColor: colors.card, padding: 14 }]}>
+            <Text style={[styles.noteLabel, { color: colors.textSecondary, paddingHorizontal: 0, paddingTop: 0 }]}>
+              Photos ({attachments.length})
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+              {attachments.map((att) => (
+                <Image
+                  key={att.id}
+                  source={{ uri: att.file_uri }}
+                  style={styles.attachmentThumb}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12, borderTopColor: colors.separator }]}>
@@ -117,7 +146,7 @@ export default function AttendanceDetailScreen() {
         >
           <Ionicons name="journal-outline" size={20} color={colors.primary} style={{ marginRight: 8 }} />
           <Text style={[styles.journalBtnText, { color: colors.primary }]}>
-            {entry.note ? "Edit Journal Note" : "Add Journal Note"}
+            {entry.note || attachments.length > 0 ? "Edit Journal / Photos" : "Add Journal Note & Photos"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -143,6 +172,7 @@ const styles = StyleSheet.create({
   dataValue: { fontSize: 14, fontWeight: "600" },
   noteLabel: { fontSize: 12, fontWeight: "600", marginBottom: 4, paddingHorizontal: 16, paddingTop: 12 },
   noteText: { fontSize: 14, lineHeight: 22, paddingHorizontal: 16, paddingBottom: 16 },
+  attachmentThumb: { width: 110, height: 110, borderRadius: 10, marginRight: 10 },
   footer: { paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1 },
   journalBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderRadius: 14, height: 52, borderWidth: 1 },
   journalBtnText: { fontSize: 15, fontWeight: "700" },

@@ -1,8 +1,8 @@
-﻿import React from "react";
+﻿import React, { useCallback } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Header from "../components/Header";
 import StatCard from "../components/StatCard";
@@ -18,8 +18,15 @@ export default function AttendanceScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const navigation = useNavigation<NavProp>();
-  const { entries, totalHours, daysLogged } = useAttendance();
+  const { entries, totalHours, daysLogged, refresh } = useAttendance();
   const { settings } = useAppSettings();
+
+  // Refresh every time this tab comes into focus (e.g. after timer time-out)
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

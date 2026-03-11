@@ -74,12 +74,11 @@ export default function SignupScreen({ navigation }: Props) {
     } else {
       showNotification({
         type: "success",
-        title: "Check your email",
-        message: "A verification link has been sent. Verify your email then sign in.",
+        title: "Account created!",
+        message: "Welcome! Let's set up your goals.",
       });
-      setTimeout(() => {
-        navigation.navigate("Login");
-      }, 2000);
+      // Auth state change will automatically switch the navigator to the
+      // onboarding flow — no explicit navigation call needed here.
     }
   };
 
