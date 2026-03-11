@@ -83,7 +83,13 @@ export default function ManualEntryScreen() {
     const start = new Date(y, mo - 1, d, inH, inM).getTime();
     const end   = new Date(y, mo - 1, d, outH, outM).getTime();
     if (end <= start) { Alert.alert("Invalid Times", "Time out must be after time in"); return; }
-    const hours = parseFloat(((end - start) / 3600000).toFixed(2));
+    let hours = parseFloat(((end - start) / 3600000).toFixed(2));
+    // Deduct a fixed 1 hour whenever the shift crosses the 12:00–13:00 lunch window
+    const lunchStart = new Date(y, mo - 1, d, 12, 0).getTime();
+    const lunchEnd   = new Date(y, mo - 1, d, 13, 0).getTime();
+    if (start < lunchEnd && end > lunchStart) {
+      hours = Math.max(0, hours - 1);
+    }
 
     const existing = user ? getAttendanceByDate(user.id, date) : null;
     if (existing) {

@@ -182,24 +182,28 @@ function DatePicker({
           return (
             <TouchableOpacity
               key={d}
-              style={[
-                dp.cell,
-                selected && { backgroundColor: colors.primary, borderRadius: 20 },
-                !selected && todayCell && { borderWidth: 1.5, borderRadius: 20, borderColor: colors.primary },
-                selected && todayCell && { borderWidth: 2, borderColor: "rgba(255,255,255,0.45)" },
-              ]}
+              style={dp.cell}
               onPress={() => setDay(d)}
               activeOpacity={0.7}
             >
-              <Text
+              <View
                 style={[
-                  dp.cellText,
-                  { color: selected ? "#fff" : todayCell ? colors.primary : colors.text },
-                  selected && { fontWeight: "700" },
+                  dp.dayCircle,
+                  selected && { backgroundColor: colors.primary },
+                  !selected && todayCell && { borderWidth: 1.5, borderColor: colors.primary },
+                  selected && todayCell && { borderWidth: 2, borderColor: "rgba(255,255,255,0.45)" },
                 ]}
               >
-                {d}
-              </Text>
+                <Text
+                  style={[
+                    dp.cellText,
+                    { color: selected ? "#fff" : todayCell ? colors.primary : colors.text },
+                    selected && { fontWeight: "700" },
+                  ]}
+                >
+                  {d}
+                </Text>
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -225,7 +229,8 @@ const dp = StyleSheet.create({
   weekLabel: { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "600" },
   grid: { flexDirection: "row", flexWrap: "wrap" },
   cell: { width: `${100 / 7}%`, aspectRatio: 1, justifyContent: "center", alignItems: "center" },
-  cellText: { fontSize: 14, includeFontPadding: false },
+  dayCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center" },
+  cellText: { fontSize: 14, includeFontPadding: false, lineHeight: 14, textAlign: "center" },
 });
 
 // ── ScrollColumn ──────────────────────────────────────────────────────────────

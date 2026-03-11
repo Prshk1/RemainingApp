@@ -55,6 +55,7 @@ export default function SwipeableRow({ children, onEdit, onDelete }: SwipeableRo
 
   const translateX = useRef(new Animated.Value(0)).current;
   const lastX = useRef(0);
+  const currentX = useRef(0);
 
   function snap(toValue: number, cb?: () => void) {
     Animated.spring(translateX, { toValue, ...motion.spring.snappy }).start(cb);
@@ -67,26 +68,35 @@ export default function SwipeableRow({ children, onEdit, onDelete }: SwipeableRo
 
   const panResponder = useRef(
     require("react-native").PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
+      // Claim the touch immediately when a side is already open (enables tap-to-close)
+      onStartShouldSetPanResponder: () => lastX.current !== 0,
       onMoveShouldSetPanResponder: (_: GestureResponderEvent, gs: PanResponderGestureState) =>
         Math.abs(gs.dx) > 6 && Math.abs(gs.dx) > Math.abs(gs.dy),
       onPanResponderGrant: () => {
-        translateX.stopAnimation();
-        translateX.setOffset(lastX.current);
-        translateX.setValue(0);
+        // Read actual animated position so grabbing mid-spring never jumps the card
+        translateX.stopAnimation((current) => {
+          lastX.current = current;
+          currentX.current = current;
+          translateX.setOffset(current);
+          translateX.setValue(0);
+        });
       },
       onPanResponderMove: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
-        const raw = gs.dx;
-        // Clamp: allow positive (right) only if there's a left action, negative (left) only if right action
-        const clamped = Math.min(rightOpen * 1.15, Math.max(leftOpen * 1.15, raw));
-        translateX.setValue(clamped);
+        // Clamp the absolute position to action bounds — no bounce overshoot
+        const rawPos = lastX.current + gs.dx;
+        const clampedPos = Math.min(rightOpen, Math.max(leftOpen, rawPos));
+        currentX.current = clampedPos;
+        translateX.setValue(clampedPos - lastX.current);
       },
       onPanResponderRelease: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
         translateX.flattenOffset();
-        const current = lastX.current + gs.dx;
-        if (current > rightOpen / 2 && leftAction) {
+        const pos = currentX.current;
+        // Tap while open (minimal movement) → close the row
+        if (Math.abs(pos - lastX.current) < 5 && lastX.current !== 0) {
+          close();
+        } else if (pos > rightOpen / 2 && leftAction) {
           openRight();
-        } else if (current < leftOpen / 2 && rightAction) {
+        } else if (pos < leftOpen / 2 && rightAction) {
           openLeft();
         } else {
           close();
@@ -97,6 +107,12 @@ export default function SwipeableRow({ children, onEdit, onDelete }: SwipeableRo
 
   return (
     <View style={styles.container}>
+      {/* Seamless color fill visible behind card rounded corners as row slides */}
+      <View style={styles.bgFill}>
+        <View style={{ flex: 1, backgroundColor: leftAction ? leftColor : "transparent" }} />
+        <View style={{ flex: 1, backgroundColor: rightAction ? rightColor : "transparent" }} />
+      </View>
+
       {/* LEFT action button (revealed when row slides right) */}
       {leftAction && (
         <View style={[styles.leftAction, { width: ACTION_WIDTH, backgroundColor: leftColor }]}>
@@ -181,10 +197,19 @@ const styles = StyleSheet.create({
   },
   row: {
     width: "100%",
+    zIndex: 2,
   },
   rowMask: {
     borderRadius: 14,
     overflow: "hidden",
+  },
+  bgFill: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: "row",
   },
 });
 
