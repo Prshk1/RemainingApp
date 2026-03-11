@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,14 @@ import {
   TouchableOpacity,
   Modal,
   Dimensions,
-  Share,
-  Alert,
-  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as MediaLibrary from "expo-media-library";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import Header from "../components/Header";
 import ConfirmModal from "../components/ConfirmModal";
 import { useTheme } from "../context/ThemeContext";
@@ -46,6 +45,14 @@ export default function AttendanceDetailScreen() {
   const [deleteVisible, setDeleteVisible] = useState(false);
   const [photoIndex, setPhotoIndex] = useState<number | null>(null);
   const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showToast(msg: string, ok = true) {
+    if (toastRef.current) clearTimeout(toastRef.current);
+    setToast({ msg, ok });
+    toastRef.current = setTimeout(() => setToast(null), 2500);
+  }
 
   // Re-fetch attachments every time this screen comes into focus (e.g., after
   // returning from JournalScreen where new photos may have been added).
@@ -70,24 +77,35 @@ export default function AttendanceDetailScreen() {
   }
 
   async function savePhoto(uri: string) {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists) {
+      showToast("Photo no longer available.", false);
+      return;
+    }
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission Required", "Allow photo library access to save photos.");
+        showToast("Allow photo library access to save photos.", false);
         return;
       }
       await MediaLibrary.saveToLibraryAsync(uri);
-      Alert.alert("Saved", "Photo saved to your gallery.");
+      showToast("Saved to gallery ✓");
     } catch {
-      Alert.alert("Error", "Could not save photo.");
+      showToast("Could not save photo.", false);
     }
   }
 
   async function sharePhoto(uri: string) {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists) {
+      showToast("Photo no longer available.", false);
+      return;
+    }
     try {
-      await Share.share(
-        Platform.OS === "ios" ? { url: uri } : { message: uri }
-      );
+      const available = await Sharing.isAvailableAsync();
+      if (available) {
+        await Sharing.shareAsync(uri, { mimeType: "image/jpeg" });
+      }
     } catch {
       // user cancelled — no-op
     }
@@ -293,6 +311,13 @@ export default function AttendanceDetailScreen() {
                   <Text style={styles.viewerActionLabel}>Share</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* in-app toast feedback */}
+              {toast && (
+                <View style={[styles.toast, { backgroundColor: toast.ok ? "rgba(34,197,94,0.92)" : "rgba(220,53,69,0.92)" }]}>
+                  <Text style={styles.toastText}>{toast.msg}</Text>
+                </View>
+              )}
             </>
           )}
         </View>
@@ -366,4 +391,6 @@ const styles = StyleSheet.create({
   },
   viewerActionBtn: { alignItems: "center", gap: 4 },
   viewerActionLabel: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  toast: { position: "absolute", bottom: 130, alignSelf: "center", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
+  toastText: { color: "#fff", fontSize: 13, fontWeight: "600" },
 });

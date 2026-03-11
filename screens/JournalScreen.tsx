@@ -8,6 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 import Header from "../components/Header";
 import ConfirmModal from "../components/ConfirmModal";
 import { useTheme } from "../context/ThemeContext";
@@ -75,11 +76,20 @@ export default function JournalScreen() {
     const asset = result.assets[0];
     if (!entry || !user) return;
 
+    // Copy from the ephemeral ImagePicker cache into persistent app storage
+    // so the URI remains valid after app restarts or cache clears.
+    const id = generateId();
+    const ext = asset.fileName?.split(".").pop() ?? "jpg";
+    const destDir = `${FileSystem.documentDirectory}attachments/`;
+    await FileSystem.makeDirectoryAsync(destDir, { intermediates: true });
+    const destUri = `${destDir}${id}.${ext}`;
+    await FileSystem.copyAsync({ from: asset.uri, to: destUri });
+
     const newAttachment: Omit<AttachmentRow, "created_at" | "synced" | "deleted"> = {
-      id: generateId(),
+      id,
       entry_id: entry.id,
       user_id: user.id,
-      file_uri: asset.uri,
+      file_uri: destUri,
       remote_path: null,
       display_name: asset.fileName ?? null,
     };

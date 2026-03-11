@@ -30,7 +30,7 @@ export default function BonusItem({ iconName = "star", title, date, status, hour
       </View>
       <View style={styles.content}>
         <Text style={[styles.title, { color: isPending ? colors.textSecondary : colors.text }]}>{title}</Text>
-        <Text style={[styles.meta, { color: colors.textSecondary }]}>{date} • {status}</Text>
+        <Text style={[styles.meta, { color: colors.textSecondary }]}>{date}</Text>
       </View>
       <Text style={[styles.hours, { color: isPending ? colors.textMuted : colors.primary }]}>
         +{hours.toFixed(1)}<Text style={styles.hoursUnit}>h</Text>
@@ -40,7 +40,7 @@ export default function BonusItem({ iconName = "star", title, date, status, hour
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: "row", alignItems: "center", borderRadius: 14, padding: 14, marginBottom: 10 },
+  card: { flexDirection: "row", alignItems: "center", borderRadius: 14, padding: 14 },
   iconCircle: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", marginRight: 14 },
   content: { flex: 1 },
   title: { fontSize: 15, fontWeight: "700", marginBottom: 3 },

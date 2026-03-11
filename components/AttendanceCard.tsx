@@ -53,7 +53,7 @@ export default function AttendanceCard({
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: "row", alignItems: "center", borderRadius: 14, padding: 14, marginBottom: 10 },
+  card: { flexDirection: "row", alignItems: "center", borderRadius: 14, padding: 14 },
   iconBox: { width: 44, height: 44, borderRadius: 10, justifyContent: "center", alignItems: "center", marginRight: 14 },
   content: { flex: 1 },
   titleRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },

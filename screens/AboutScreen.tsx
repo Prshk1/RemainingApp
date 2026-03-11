@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -48,9 +48,11 @@ export default function AboutScreen() {
       >
         {/* App identity */}
         <View style={styles.logoSection}>
-          <View style={[styles.logoBox, { backgroundColor: colors.primaryDim }]}>
-            <Ionicons name="time-outline" size={42} color={colors.primary} />
-          </View>
+          <Image
+            source={require("../assets/Remaining Logo(BlackBG)-02.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={[styles.appName, { color: colors.text }]}>Remaining</Text>
           <Text style={[styles.appTagline, { color: colors.textSecondary }]}>
             Track your internship hours, goals, and journal — all offline.
@@ -98,7 +100,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   inner: { paddingHorizontal: 16 },
   logoSection: { alignItems: "center", paddingVertical: 28 },
-  logoBox: { width: 80, height: 80, borderRadius: 22, alignItems: "center", justifyContent: "center", marginBottom: 14 },
+  logo: { width: 90, height: 90, marginBottom: 14 },
   appName: { fontSize: 22, fontWeight: "800", marginBottom: 6 },
   appTagline: { fontSize: 13, textAlign: "center", lineHeight: 20, maxWidth: 260 },
   section: { fontSize: 11, fontWeight: "700", letterSpacing: 1, marginTop: 24, marginBottom: 8, marginLeft: 4 },

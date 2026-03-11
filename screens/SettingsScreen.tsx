@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   segmentLabel: { fontSize: 12, fontWeight: "700" },
   // Time format row
   rowCard: { borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  rowCardContent: { flexDirection: "row", alignItems: "center" },
+  rowCardContent: { flexDirection: "row", alignItems: "center", flex: 1, marginRight: 12 },
   rowCardLabel: { fontSize: 15 },
   rowCardSub: { fontSize: 11, marginTop: 2 },
   // Work days

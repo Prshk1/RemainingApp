@@ -137,6 +137,7 @@ const styles = StyleSheet.create({
   container: {
     overflow: "hidden",
     marginBottom: 10,
+    borderRadius: 14,
   },
   leftAction: {
     position: "absolute",

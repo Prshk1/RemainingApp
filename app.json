@@ -32,7 +32,9 @@
     "owner": "prshk1",
     "plugins": [
       "expo-sqlite",
-      "expo-secure-store"
+      "expo-secure-store",
+      ["expo-media-library", { "photosPermission": "Allow Remaining to save photos to your gallery." }],
+      ["expo-image-picker", { "photosPermission": "Allow Remaining to access your photo library." }]
     ]
   }
 }
