@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/RemainingLogo-Splash.png",
       "resizeMode": "contain",
-      "imageWidth": 280,
+      "imageWidth": 360,
       "backgroundColor": "#0B0616"
     },
     "ios": {
@@ -23,7 +23,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/RemainingLogo-Foreground.png",
         "backgroundColor": "#0B0616",
-        "monochromeImage": "./assets/RemainingLogo-monochrome.png"
+        "monochromeImage": "./assets/RemainingLogo-monochrome.png",
+        "safeMargins": true
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.prshk1.remaining",
