@@ -20,8 +20,9 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#0B0616",
-        "foregroundImage": "./assets/Remaining Logo(BlackBG)-02.png"
+        "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.prshk1.remaining",

@@ -54,6 +54,12 @@ import { useTheme } from "../context/ThemeContext";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
+// Pre-compute a pixel-aligned cell width that guarantees all 7 weekday
+// columns fit inside the modal on every Android screen size.
+// Modal sheet: maxWidth = min(SCREEN_W, 480), paddingHorizontal = 20 each side.
+const MODAL_W  = Math.min(SCREEN_W, 480);
+const CELL_W   = Math.floor((MODAL_W - 40) / 7);
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function pad(n: number) {
@@ -226,9 +232,9 @@ const dp = StyleSheet.create({
   navRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   navTitle: { fontSize: 16, fontWeight: "700" },
   weekRow: { flexDirection: "row", marginBottom: 4 },
-  weekLabel: { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "600" },
-  grid: { flexDirection: "row", flexWrap: "wrap" },
-  cell: { width: `${100 / 7}%`, aspectRatio: 1, justifyContent: "center", alignItems: "center" },
+  weekLabel: { width: CELL_W, textAlign: "center", fontSize: 11, fontWeight: "600" },
+  grid: { flexDirection: "row", flexWrap: "wrap", width: CELL_W * 7 },
+  cell: { width: CELL_W, aspectRatio: 1, justifyContent: "center", alignItems: "center" },
   dayCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center" },
   cellText: { fontSize: 14, includeFontPadding: false, lineHeight: 14, textAlign: "center" },
 });
