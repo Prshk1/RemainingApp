@@ -4,11 +4,12 @@
     "slug": "RemainingApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Remaining Logo(BlackBG)-02.png",
+    "icon": "./assets/RemainingLogo-Foreground.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/Remaining Logo(BlackBG)-02.png",
+      "image": "./assets/RemainingLogo-Splash.png",
       "resizeMode": "contain",
+      "imageWidth": 280,
       "backgroundColor": "#0B0616"
     },
     "ios": {
@@ -20,9 +21,9 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/android-icon-foreground.png",
+        "foregroundImage": "./assets/RemainingLogo-Foreground.png",
         "backgroundColor": "#0B0616",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "monochromeImage": "./assets/RemainingLogo-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.prshk1.remaining",
@@ -37,7 +38,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/Remaining Logo(BlackBG)-02.png"
+      "favicon": "./assets/RemainingLogo-Foreground.png"
     },
     "extra": {
       "eas": {
