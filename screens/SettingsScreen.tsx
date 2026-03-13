@@ -12,6 +12,8 @@ import { TAB_BAR_HEIGHT } from "../components/CustomTabBar";
 import { useTheme } from "../context/ThemeContext";
 import { useAppSettings, WEEKDAYS } from "../context/AppSettingsContext";
 import { useAuth } from "../context/AuthContext";
+import { useSync } from "../context/SyncContext";
+import { upsertGoals } from "../services/database/repositories/goals";
 import { ThemeMode } from "../theme/types";
 import { RootStackParamList } from "../App";
 
@@ -33,7 +35,8 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, mode, setMode } = useTheme();
   const { settings, updateSettings } = useAppSettings();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  const { isOnline, isSyncing, pendingCount, lastSyncAt, lastError, syncNow, requestSync } = useSync();
   const navigation = useNavigation<NavProp>();
 
   // Modal state
@@ -47,11 +50,36 @@ export default function SettingsScreen() {
     { label: "System", value: "system", icon: "contrast-outline" },
   ];
 
+  async function applyGoalSettingsUpdate(
+    updates: Partial<{
+      requiredHours: number;
+      maxHoursPerDay: number;
+      workDays: string[];
+      lunchBreakEnabled: boolean;
+      timeFormat: "12h" | "24h";
+    }>
+  ) {
+    const next = { ...settings, ...updates };
+    await updateSettings(updates);
+
+    if (!user) return;
+
+    upsertGoals(
+      user.id,
+      next.requiredHours,
+      next.maxHoursPerDay,
+      next.workDays,
+      next.lunchBreakEnabled,
+      next.timeFormat
+    );
+    requestSync();
+  }
+
   function toggleDay(day: string) {
     const next = settings.workDays.includes(day)
       ? settings.workDays.filter((d) => d !== day)
       : [...settings.workDays, day];
-    updateSettings({ workDays: next });
+    void applyGoalSettingsUpdate({ workDays: next });
   }
 
   return (
@@ -102,7 +130,9 @@ export default function SettingsScreen() {
           </View>
           <Switch
             value={settings.timeFormat === "24h"}
-            onValueChange={(v) => updateSettings({ timeFormat: v ? "24h" : "12h" })}
+            onValueChange={(v) => {
+              void applyGoalSettingsUpdate({ timeFormat: v ? "24h" : "12h" });
+            }}
             trackColor={{ false: colors.border, true: colors.primarySoft }}
             thumbColor={settings.timeFormat === "24h" ? colors.primary : colors.textMuted}
           />
@@ -123,7 +153,9 @@ export default function SettingsScreen() {
                   { borderColor: active ? colors.primary : colors.border },
                   active && { backgroundColor: colors.primaryDim },
                 ]}
-                onPress={() => updateSettings({ workDays: p.days })}
+                onPress={() => {
+                  void applyGoalSettingsUpdate({ workDays: p.days });
+                }}
                 activeOpacity={0.75}
               >
                 <Text style={[styles.presetLabel, { color: active ? colors.primary : colors.textSecondary }]}>
@@ -215,6 +247,40 @@ export default function SettingsScreen() {
           />
         </View>
 
+        {/* ── SYNC ───────────────────────────────────────── */}
+        <Text style={[styles.group, { color: colors.textSecondary }]}>SYNC</Text>
+        <SettingsRow
+          label="Connection"
+          value={isOnline ? "Online" : "Offline"}
+        />
+        <SettingsRow
+          label="Pending Changes"
+          value={String(pendingCount)}
+        />
+        <SettingsRow
+          label="Status"
+          value={isSyncing ? "Syncing..." : lastError ? lastError : "Up to date"}
+        />
+        <SettingsRow
+          label="Last Successful Sync"
+          value={lastSyncAt ? new Date(lastSyncAt).toLocaleString() : "Not yet"}
+        />
+        <TouchableOpacity
+          style={[
+            styles.syncButton,
+            { backgroundColor: isSyncing ? colors.primaryDim : colors.primary },
+          ]}
+          disabled={isSyncing || !isOnline}
+          onPress={() => {
+            void syncNow();
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.syncButtonText}>
+            {isSyncing ? "Syncing..." : "Sync Now"}
+          </Text>
+        </TouchableOpacity>
+
         {/* ── ABOUT ───────────────────────────────────────── */}
         <Text style={[styles.group, { color: colors.textSecondary }]}>ABOUT</Text>
         <SettingsRow
@@ -253,7 +319,9 @@ export default function SettingsScreen() {
         onConfirm={(text) => {
           setReqHoursVisible(false);
           const n = parseInt(text, 10);
-          if (!isNaN(n) && n > 0) updateSettings({ requiredHours: n });
+          if (!isNaN(n) && n > 0) {
+            void applyGoalSettingsUpdate({ requiredHours: n });
+          }
         }}
         onCancel={() => setReqHoursVisible(false)}
       />
@@ -267,7 +335,9 @@ export default function SettingsScreen() {
         onConfirm={(text) => {
           setMaxHoursVisible(false);
           const n = parseFloat(text);
-          if (!isNaN(n) && n > 0) updateSettings({ maxHoursPerDay: n });
+          if (!isNaN(n) && n > 0) {
+            void applyGoalSettingsUpdate({ maxHoursPerDay: n });
+          }
         }}
         onCancel={() => setMaxHoursVisible(false)}
       />
@@ -295,4 +365,6 @@ const styles = StyleSheet.create({
   chipGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, borderRadius: 14, padding: 14, marginBottom: 4 },
   dayChip: { borderRadius: 10, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 9, alignItems: "center", justifyContent: "center" },
   dayChipText: { fontSize: 13, fontWeight: "700" },
+  syncButton: { borderRadius: 12, height: 46, justifyContent: "center", alignItems: "center", marginTop: 10 },
+  syncButtonText: { color: "#fff", fontSize: 14, fontWeight: "700" },
 });

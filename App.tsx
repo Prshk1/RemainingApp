@@ -12,6 +12,7 @@ import { NotificationStack } from "./components/NotificationStack";
 import { TimerProvider } from "./context/TimerContext";
 import { AttendanceProvider } from "./context/AttendanceContext";
 import { BonusProvider } from "./context/BonusContext";
+import { SyncProvider } from "./context/SyncContext";
 import { initDB } from "./services/database/db";
 import { getGoals } from "./services/database/repositories/goals";
 
@@ -88,46 +89,48 @@ function AppNavigator() {
 
   return (
     <AppSettingsProvider>
-      <AttendanceProvider>
-        <TimerProvider>
-          <BonusProvider>
-            <Stack.Navigator
-              screenOptions={{ headerShown: false }}
-              initialRouteName={hasGoals ? "MainTabs" : "Onboarding"}
-            >
-              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-              <Stack.Screen name="SetGoals" component={SetGoalsScreen} />
-              <Stack.Screen name="MainTabs" component={BottomTabs} />
-              {/* Root-level modals sit above the tab bar */}
-              <Stack.Screen
-                name="ManualEntry"
-                component={ManualEntryScreen}
-                options={{ presentation: "modal" }}
-              />
-              <Stack.Screen
-                name="AddBonus"
-                component={AddBonusScreen}
-                options={{ presentation: "modal" }}
-              />
-              <Stack.Screen
-                name="AttendanceDetail"
-                component={AttendanceDetailScreen}
-                options={{ presentation: "card" }}
-              />
-              <Stack.Screen
-                name="Journal"
-                component={JournalScreen}
-                options={{ presentation: "card" }}
-              />
-              <Stack.Screen
-                name="About"
-                component={AboutScreen}
-                options={{ presentation: "card" }}
-              />
-            </Stack.Navigator>
-          </BonusProvider>
-        </TimerProvider>
-      </AttendanceProvider>
+      <SyncProvider>
+        <AttendanceProvider>
+          <TimerProvider>
+            <BonusProvider>
+              <Stack.Navigator
+                screenOptions={{ headerShown: false }}
+                initialRouteName={hasGoals ? "MainTabs" : "Onboarding"}
+              >
+                <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+                <Stack.Screen name="SetGoals" component={SetGoalsScreen} />
+                <Stack.Screen name="MainTabs" component={BottomTabs} />
+                {/* Root-level modals sit above the tab bar */}
+                <Stack.Screen
+                  name="ManualEntry"
+                  component={ManualEntryScreen}
+                  options={{ presentation: "modal" }}
+                />
+                <Stack.Screen
+                  name="AddBonus"
+                  component={AddBonusScreen}
+                  options={{ presentation: "modal" }}
+                />
+                <Stack.Screen
+                  name="AttendanceDetail"
+                  component={AttendanceDetailScreen}
+                  options={{ presentation: "card" }}
+                />
+                <Stack.Screen
+                  name="Journal"
+                  component={JournalScreen}
+                  options={{ presentation: "card" }}
+                />
+                <Stack.Screen
+                  name="About"
+                  component={AboutScreen}
+                  options={{ presentation: "card" }}
+                />
+              </Stack.Navigator>
+            </BonusProvider>
+          </TimerProvider>
+        </AttendanceProvider>
+      </SyncProvider>
     </AppSettingsProvider>
   );
 }

@@ -61,3 +61,10 @@ export function upsertGoals(
     );
   }
 }
+
+export function getUnsyncedGoals(userId: string): GoalsRow[] {
+  return openDB().getAllSync<GoalsRow>(
+    "SELECT * FROM goals WHERE user_id = ? AND synced = 0",
+    [userId]
+  );
+}

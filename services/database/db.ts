@@ -97,11 +97,21 @@ export function initDB(): void {
       remote_path TEXT,
       display_name TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       synced INTEGER NOT NULL DEFAULT 0,
       deleted INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY(entry_id) REFERENCES attendance(id)
     );
   `);
+
+  // Ensure newer sync columns/indexes exist on older app installs.
+  try {
+    db.execSync(
+      `ALTER TABLE attendance_attachments ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'));`
+    );
+  } catch {
+    // Column already exists.
+  }
 
   // ── Data integrity: one active attendance record per user per date ──
   // Soft-delete any duplicate active rows, keeping the most recently inserted.
@@ -115,5 +125,13 @@ export function initDB(): void {
   db.execSync(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_attendance_user_date_active
      ON attendance(user_id, date) WHERE deleted = 0;`
+  );
+  db.execSync(
+    `CREATE INDEX IF NOT EXISTS idx_sync_queue_user_status
+     ON sync_queue(user_id, status);`
+  );
+  db.execSync(
+    `CREATE INDEX IF NOT EXISTS idx_sync_queue_entity
+     ON sync_queue(entity_type, entity_id);`
   );
 }

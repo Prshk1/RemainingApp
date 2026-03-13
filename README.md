@@ -39,7 +39,7 @@ Each attendance record can include notes and attached photos, making it useful a
 
 ### Offline-First Data Model
 
-Core app data is stored locally in SQLite, so the app remains usable without a network connection. When connectivity is available, the sync layer can push unsynced attendance, bonus, and timer-session records to Supabase.
+Core app data is stored locally in SQLite, so the app remains usable without a network connection. When connectivity is available, the sync layer reconciles attendance, bonus, timer-session, goals, QR metadata, and attachment metadata records with Supabase.
 
 ## Screenshots
 
@@ -104,10 +104,82 @@ The app is intentionally resilient offline. If sync fails, local usage is unaffe
 
 ## Current Auth and Backend Status
 
-- Authentication is currently implemented in offline-first local mode
-- Supabase is present in the project for sync support
+- Authentication uses Supabase Auth with cached local session continuity for offline relaunches
+- SQLite remains the local source of truth for day-to-day usage in all network conditions
+- Supabase is used as the cloud sync target for cross-device continuity
 - The repository includes EAS build configuration for development, preview, and production profiles
 - A Netlify functions folder exists, but no active functions are implemented in this repository at the moment
+
+## Supabase Setup
+
+Run the SQL schema once in your Supabase project before testing sync.
+
+If you already ran an older version of this schema, run it again to update the
+`set_updated_at` trigger function so client-provided `updated_at` values are
+preserved during sync updates.
+
+### 1) Open SQL Editor and run schema
+
+Execute:
+
+```sql
+-- Paste the full file contents:
+-- supabase/schema.sql
+```
+
+This creates all required tables, indexes, `updated_at` triggers, and RLS policies for:
+
+- `attendance`
+- `bonus`
+- `timer_sessions`
+- `goals`
+- `qr_image`
+- `attendance_attachments`
+
+### 2) Verify table creation
+
+In Supabase SQL Editor, run:
+
+```sql
+select tablename
+from pg_tables
+where schemaname = 'public'
+	and tablename in (
+		'attendance',
+		'bonus',
+		'timer_sessions',
+		'goals',
+		'qr_image',
+		'attendance_attachments'
+	)
+order by tablename;
+```
+
+### 3) Verify RLS policies
+
+Run:
+
+```sql
+select tablename, policyname
+from pg_policies
+where schemaname = 'public'
+	and tablename in (
+		'attendance',
+		'bonus',
+		'timer_sessions',
+		'goals',
+		'qr_image',
+		'attendance_attachments'
+	)
+order by tablename, policyname;
+```
+
+### 4) App configuration
+
+Ensure your app is using the correct Supabase URL and anon key in your Expo environment config, then sign in and trigger a sync from Settings.
+
+If you previously saw edited/deleted records reappear, update to the latest app code,
+rerun `supabase/schema.sql`, then trigger `Sync Now` once to flush pending local changes.
 
 ## Project Structure
 

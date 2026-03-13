@@ -6,6 +6,7 @@ import * as ImagePicker from "expo-image-picker";
 import Header from "../components/Header";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
+import { useSync } from "../context/SyncContext";
 import { getQRImage, upsertQRImage } from "../services/database/repositories/qr";
 import { generateId } from "../utils/generateId";
 
@@ -13,6 +14,7 @@ export default function QRScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { user } = useAuth();
+  const { requestSync } = useSync();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +37,8 @@ export default function QRScreen() {
       const uri = result.assets[0].uri;
       setImageUri(uri);
       if (user) {
-      upsertQRImage(generateId(), user.id, uri, null);
+        upsertQRImage(generateId(), user.id, uri, null);
+        requestSync();
       }
     }
   }

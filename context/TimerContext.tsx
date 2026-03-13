@@ -19,6 +19,7 @@ import {
   updateAttendance,
 } from "../services/database/repositories/attendance";
 import { generateId } from "../utils/generateId";
+import { useSync } from "./SyncContext";
 
 export type TimerState = "idle" | "running" | "break" | "completed";
 
@@ -76,6 +77,7 @@ const TimerContext = createContext<TimerContextValue>({
 export function TimerProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { refresh: refreshAttendance } = useAttendance();
+  const { requestSync } = useSync();
   const [timerState, setTimerState] = useState<TimerState>("idle");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<Date | null>(null);
@@ -176,7 +178,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     setBreakMinutes(0);
     lunchAutoBreakApplied.current = false;
     setTimerState("running");
-  }, [user, timerState]);
+    requestSync();
+  }, [user, timerState, requestSync]);
 
   const timeOut = useCallback(() => {
     if (!user || !sessionId || timerState === "idle") return;
@@ -198,6 +201,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       break_minutes: totalBreak,
       is_active: 0,
     });
+    requestSync();
 
     // Capture before state reset so Alert callbacks can still reference them
     const capturedStart = startTime;
@@ -237,9 +241,10 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
           note: null,
         });
         refreshAttendance();
+        requestSync();
       }
     }
-  }, [user, sessionId, timerState, elapsedSeconds, breakMinutes, startTime, refreshAttendance]);
+  }, [user, sessionId, timerState, elapsedSeconds, breakMinutes, startTime, refreshAttendance, requestSync]);
 
   const startBreak = useCallback(() => {
     if (timerState !== "running") return;
@@ -256,8 +261,9 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       updateAttendance(confirmation.existingId, confirmation.payload);
       refreshAttendance();
       setPendingConfirmation(null);
+      requestSync();
     },
-    [refreshAttendance]
+    [refreshAttendance, requestSync]
   );
 
   const cancelAttendanceConfirmation = useCallback(() => {

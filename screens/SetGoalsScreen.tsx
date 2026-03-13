@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { useAppSettings, WEEKDAYS } from "../context/AppSettingsContext";
 import { useAuth } from "../context/AuthContext";
+import { useSync } from "../context/SyncContext";
 import { upsertGoals } from "../services/database/repositories/goals";
 import { generateId } from "../utils/generateId";
 import { RootStackParamList } from "../App";
@@ -22,6 +23,7 @@ export default function SetGoalsScreen() {
   const navigation = useNavigation<NavProp>();
   const { updateSettings, settings } = useAppSettings();
   const { user } = useAuth();
+  const { requestSync } = useSync();
 
   const [requiredHours, setRequiredHours] = useState(String(settings.requiredHours));
   const [maxHoursPerDay, setMaxHoursPerDay] = useState(String(settings.maxHoursPerDay));
@@ -41,6 +43,7 @@ export default function SetGoalsScreen() {
       await updateSettings({ requiredHours: req, maxHoursPerDay: max, workDays });
       if (user) {
         upsertGoals(user.id, req, max, workDays, settings.lunchBreakEnabled, settings.timeFormat);
+        requestSync();
       }
       navigation.navigate("MainTabs");
     } finally {

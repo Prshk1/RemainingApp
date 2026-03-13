@@ -37,3 +37,10 @@ export function upsertQRImage(
     );
   }
 }
+
+export function getUnsyncedQRImages(userId: string): QRRow[] {
+  return openDB().getAllSync<QRRow>(
+    "SELECT * FROM qr_image WHERE user_id = ? AND synced = 0",
+    [userId]
+  );
+}

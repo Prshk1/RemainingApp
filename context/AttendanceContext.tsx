@@ -16,6 +16,7 @@ import {
   updateAttendance,
 } from "../services/database/repositories/attendance";
 import { generateId } from "../utils/generateId";
+import { useSync } from "./SyncContext";
 
 export interface AttendanceEntry {
   id: string;
@@ -76,6 +77,7 @@ export function AttendanceProvider({
   children: React.ReactNode;
 }) {
   const { user } = useAuth();
+  const { requestSync } = useSync();
   const [entries, setEntries] = useState<AttendanceEntry[]>([]);
   const [totalHours, setTotalHours] = useState(0);
   const [daysLogged, setDaysLogged] = useState(0);
@@ -110,9 +112,10 @@ export function AttendanceProvider({
         note: entry.note,
       });
       load();
+      requestSync();
       return id;
     },
-    [user, load]
+    [user, load, requestSync]
   );
 
   const updateEntry = useCallback(
@@ -131,16 +134,18 @@ export function AttendanceProvider({
       if (updates.note !== undefined) mapped.note = updates.note;
       updateAttendance(id, mapped);
       load();
+      requestSync();
     },
-    [load]
+    [load, requestSync]
   );
 
   const deleteEntry = useCallback(
     async (id: string) => {
       softDeleteAttendance(id);
       load();
+      requestSync();
     },
-    [load]
+    [load, requestSync]
   );
 
   return (

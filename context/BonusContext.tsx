@@ -15,6 +15,7 @@ import {
   updateBonus,
 } from "../services/database/repositories/bonus";
 import { generateId } from "../utils/generateId";
+import { useSync } from "./SyncContext";
 
 export interface BonusEntry {
   id: string;
@@ -61,6 +62,7 @@ const BonusContext = createContext<BonusContextValue>({
 
 export function BonusProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { requestSync } = useSync();
   const [entries, setEntries] = useState<BonusEntry[]>([]);
   const [totalApprovedHours, setTotalApprovedHours] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,25 +93,28 @@ export function BonusProvider({ children }: { children: React.ReactNode }) {
         note: entry.note,
       });
       load();
+      requestSync();
       return id;
     },
-    [user, load]
+    [user, load, requestSync]
   );
 
   const updateBonusEntry = useCallback(
     async (id: string, updates: Partial<Omit<BonusEntry, "id">>) => {
       updateBonus(id, updates);
       load();
+      requestSync();
     },
-    [load]
+    [load, requestSync]
   );
 
   const deleteBonus = useCallback(
     async (id: string) => {
       softDeleteBonus(id);
       load();
+      requestSync();
     },
-    [load]
+    [load, requestSync]
   );
 
   return (

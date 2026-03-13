@@ -15,6 +15,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useAttendance } from "../context/AttendanceContext";
 import { useAuth } from "../context/AuthContext";
 import { useNotification } from "../context/NotificationContext";
+import { useSync } from "../context/SyncContext";
 import {
   getAttachmentsByEntryId,
   insertAttachment,
@@ -44,6 +45,7 @@ export default function JournalScreen() {
   const { entries, updateEntry } = useAttendance();
   const { user } = useAuth();
   const { showNotification } = useNotification();
+  const { requestSync } = useSync();
   const entry = entries.find((e) => e.id === route.params.entryId);
 
   const [note, setNote] = useState(entry?.note ?? "");
@@ -183,6 +185,7 @@ export default function JournalScreen() {
       });
 
       await updateEntry(entry.id, { note: note.trim() || null });
+      requestSync();
       committedRef.current = true;
       navigation.goBack();
     } finally {

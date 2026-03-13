@@ -8,6 +8,7 @@ export interface AttachmentRow {
   remote_path: string | null;
   display_name: string | null;
   created_at: string;
+  updated_at: string;
   synced: number;
   deleted: number;
 }
@@ -19,7 +20,9 @@ export function getAttachmentsByEntryId(entryId: string): AttachmentRow[] {
   );
 }
 
-export function insertAttachment(row: Omit<AttachmentRow, "created_at" | "synced" | "deleted">): void {
+export function insertAttachment(
+  row: Omit<AttachmentRow, "created_at" | "updated_at" | "synced" | "deleted">
+): void {
   openDB().runSync(
     `INSERT INTO attendance_attachments (id, entry_id, user_id, file_uri, remote_path, display_name)
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -29,7 +32,14 @@ export function insertAttachment(row: Omit<AttachmentRow, "created_at" | "synced
 
 export function softDeleteAttachment(id: string): void {
   openDB().runSync(
-    "UPDATE attendance_attachments SET deleted = 1, synced = 0 WHERE id = ?",
+    "UPDATE attendance_attachments SET deleted = 1, synced = 0, updated_at = datetime('now') WHERE id = ?",
     [id]
+  );
+}
+
+export function getUnsyncedAttachments(userId: string): AttachmentRow[] {
+  return openDB().getAllSync<AttachmentRow>(
+    "SELECT * FROM attendance_attachments WHERE user_id = ? AND synced = 0",
+    [userId]
   );
 }
