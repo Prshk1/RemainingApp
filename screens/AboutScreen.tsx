@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";import Header from "../components/Header";import { useTheme } from "../context/ThemeContext";
 
-const APP_VERSION = "1.0.1";
-const BUILD_NUMBER = "2";
+const APP_VERSION = "1.2.1";
+const BUILD_NUMBER = "4";
 
 interface InfoRowProps {
   label: string;
@@ -69,7 +69,7 @@ export default function AboutScreen() {
         {/* Developer */}
         <Text style={[styles.section, { color: colors.textSecondary }]}>DEVELOPER</Text>
         <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <InfoRow label="Made by" value="prshk1" colors={colors} />
+          <InfoRow label="Made by" value="Piroshiki" colors={colors} />
           <InfoRow
             label="Contact"
             value="prshk1@github"
@@ -85,10 +85,11 @@ export default function AboutScreen() {
           <View style={[styles.privacyRow, { backgroundColor: colors.card }]}>
             <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} style={{ marginRight: 12, marginTop: 2 }} />
             <Text style={[styles.privacyText, { color: colors.textSecondary }]}>
-              Your data is stored <Text style={{ color: colors.text, fontWeight: "700" }}>locally on this device</Text>,
-              so Remaining works offline by default. If you choose to enable online sync,
-              it will be opt-in only. We plan to add optional Supabase sync soon.
-              No analytics, no tracking, no third-party data sharing.
+              Your data is stored <Text style={{ color: colors.text, fontWeight: "700" }}>locally on your device</Text>, allowing the app to work even without an internet connection.
+              {"\n\n"}
+              If you sign in, cloud synchronization is automatically enabled. Your data securely syncs with your personal account using Supabase, allowing backup and access across your devices while still supporting offline use.
+              {"\n\n"}
+              Remaining does not use analytics, track user activity, or share your data with third parties.
             </Text>
           </View>
         </View>
