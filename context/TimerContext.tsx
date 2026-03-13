@@ -18,6 +18,7 @@ import {
   getAttendanceByDate,
   updateAttendance,
 } from "../services/database/repositories/attendance";
+import { softDeleteAttachmentsByEntryId } from "../services/database/repositories/attachments";
 import { generateId } from "../utils/generateId";
 import { useSync } from "./SyncContext";
 
@@ -31,6 +32,8 @@ export interface AttendanceConfirmation {
     time_out: string;
     break_minutes: number;
     hours: number;
+    is_manual: number;
+    note: string | null;
   };
 }
 
@@ -222,6 +225,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         time_out: endTimeStr,
         break_minutes: totalBreak,
         hours: parseFloat(netHours.toFixed(2)),
+        is_manual: 0,
+        note: null,
       };
       const existing = getAttendanceByDate(user.id, dateStr);
       if (existing) {
@@ -258,6 +263,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
   const confirmAttendanceUpdate = useCallback(
     (confirmation: AttendanceConfirmation) => {
+      softDeleteAttachmentsByEntryId(confirmation.existingId);
       updateAttendance(confirmation.existingId, confirmation.payload);
       refreshAttendance();
       setPendingConfirmation(null);

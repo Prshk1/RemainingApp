@@ -27,7 +27,12 @@ export function upsertQRImage(
   const existing = getQRImage(userId);
   if (existing) {
     openDB().runSync(
-      `UPDATE qr_image SET local_uri = ?, remote_path = ?, updated_at = datetime('now'), synced = 0 WHERE user_id = ?`,
+      `UPDATE qr_image
+       SET local_uri = ?,
+           remote_path = COALESCE(?, remote_path),
+           updated_at = datetime('now'),
+           synced = 0
+       WHERE user_id = ?`,
       [localUri, remotePath, userId]
     );
   } else {

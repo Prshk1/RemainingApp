@@ -3,6 +3,8 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator } fr
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system/legacy";
+import { useFocusEffect } from "@react-navigation/native";
 import Header from "../components/Header";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -18,13 +20,24 @@ export default function QRScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  function loadQRImage() {
     if (user) {
       const row = getQRImage(user.id);
       if (row?.local_uri) setImageUri(row.local_uri);
+      else setImageUri(null);
     }
     setLoading(false);
+  }
+
+  useEffect(() => {
+    loadQRImage();
   }, [user]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadQRImage();
+    }, [user?.id])
+  );
 
   async function pickImage() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -34,10 +47,17 @@ export default function QRScreen() {
       quality: 0.9,
     });
     if (!result.canceled && result.assets[0]) {
-      const uri = result.assets[0].uri;
-      setImageUri(uri);
+      const sourceUri = result.assets[0].uri;
+      const ext = (result.assets[0].fileName?.split(".").pop() || "png").toLowerCase();
+      const safeExt = /^(jpg|jpeg|png|gif|webp|heic|heif)$/.test(ext) ? ext : "png";
+      const qrDir = `${FileSystem.documentDirectory}qr/`;
+      await FileSystem.makeDirectoryAsync(qrDir, { intermediates: true });
+      const localUri = `${qrDir}${generateId()}.${safeExt}`;
+      await FileSystem.copyAsync({ from: sourceUri, to: localUri });
+
+      setImageUri(localUri);
       if (user) {
-        upsertQRImage(generateId(), user.id, uri, null);
+        upsertQRImage(generateId(), user.id, localUri, null);
         requestSync();
       }
     }

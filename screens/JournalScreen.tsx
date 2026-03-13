@@ -55,6 +55,7 @@ export default function JournalScreen() {
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
   const committedRef = useRef(false);
+  const latestAttachmentsRef = useRef<StagedAttachment[]>([]);
 
   // Load existing attachments for this entry
   useEffect(() => {
@@ -71,14 +72,18 @@ export default function JournalScreen() {
   }, [entry?.id]);
 
   useEffect(() => {
+    latestAttachmentsRef.current = attachments;
+  }, [attachments]);
+
+  useEffect(() => {
     return () => {
       if (committedRef.current) return;
-      const stagedOnly = attachments.filter((att) => !att.isPersisted);
+      const stagedOnly = latestAttachmentsRef.current.filter((att) => !att.isPersisted);
       stagedOnly.forEach((att) => {
         FileSystem.deleteAsync(att.file_uri, { idempotent: true }).catch(() => {});
       });
     };
-  }, [attachments]);
+  }, []);
 
   async function pickImage() {
     if (attachments.length >= MAX_ATTACHMENTS) {
@@ -188,6 +193,13 @@ export default function JournalScreen() {
       requestSync();
       committedRef.current = true;
       navigation.goBack();
+    } catch (err: any) {
+      showNotification({
+        type: "error",
+        title: "Could not save journal",
+        message: err?.message ?? "Please try again.",
+        duration: 6000,
+      });
     } finally {
       setSaving(false);
     }

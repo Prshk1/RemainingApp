@@ -71,8 +71,12 @@ export default function AttendanceDetailScreen() {
 
   async function confirmDelete() {
     if (entry) {
-      await deleteEntry(entry.id);
-      navigation.goBack();
+      try {
+        await deleteEntry(entry.id);
+        navigation.goBack();
+      } catch (err: any) {
+        showToast(err?.message ?? "Could not delete entry.", false);
+      }
     }
   }
 

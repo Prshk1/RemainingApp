@@ -70,7 +70,7 @@ export function updateAttendance(
   updates: Partial<
     Pick<
       AttendanceRow,
-      "time_in" | "time_out" | "break_minutes" | "hours" | "note"
+      "time_in" | "time_out" | "break_minutes" | "hours" | "note" | "is_manual"
     >
   >
 ): void {
@@ -89,6 +89,23 @@ export function updateAttendance(
 }
 
 export function softDeleteAttendance(id: string): void {
+  try {
+    openDB().runSync(
+      `UPDATE attendance_attachments
+       SET deleted = 1, synced = 0, updated_at = datetime('now')
+       WHERE entry_id = ? AND deleted = 0`,
+      [id]
+    );
+  } catch {
+    // Backward-compat fallback for installs missing updated_at on attachments.
+    openDB().runSync(
+      `UPDATE attendance_attachments
+       SET deleted = 1, synced = 0
+       WHERE entry_id = ? AND deleted = 0`,
+      [id]
+    );
+  }
+
   openDB().runSync(
     `UPDATE attendance SET deleted = 1, synced = 0, updated_at = datetime('now') WHERE id = ?`,
     [id]

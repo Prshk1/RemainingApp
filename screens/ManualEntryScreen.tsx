@@ -12,6 +12,7 @@ import { useAuth } from "../context/AuthContext";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { useNotification } from "../context/NotificationContext";
 import { getAttendanceByDate } from "../services/database/repositories/attendance";
+import { softDeleteAttachmentsByEntryId } from "../services/database/repositories/attachments";
 import Header from "../components/Header";
 import PickerModal from "../components/PickerModal";
 import ConfirmModal from "../components/ConfirmModal";
@@ -64,11 +65,13 @@ export default function ManualEntryScreen() {
     setSaving(true);
     try {
       if (existingId) {
+        softDeleteAttachmentsByEntryId(existingId);
         await updateEntry(existingId, {
           timeIn:  `${date}T${timeIn}:00`,
           timeOut: `${date}T${timeOut}:00`,
           breakMinutes: 0,
           hours,
+          isManual: true,
           note: note.trim() || null,
         });
       } else {

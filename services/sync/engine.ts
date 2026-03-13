@@ -1,10 +1,12 @@
 /**
  * Background sync engine for offline-first data flow.
  *
- * Sync order is pull-then-push using last-write-wins by `updated_at`:
- * 1) Pull remote records and merge into local SQLite when remote is newer.
- * 2) Push local unsynced records to Supabase and mark local rows as synced.
+ * Sync order is push-then-pull using last-write-wins by `updated_at`:
+ * 1) Push local unsynced records to Supabase and mark local rows as synced.
+ * 2) Pull remote records and merge into local SQLite when remote is newer.
  */
+import * as FileSystem from "expo-file-system/legacy";
+import { decode as decodeBase64 } from "base64-arraybuffer";
 import { supabase } from "../supabase/client";
 import {
   AttendanceRow,
@@ -20,8 +22,38 @@ import { QRRow, getUnsyncedQRImages } from "../database/repositories/qr";
 import {
   AttachmentRow,
   getUnsyncedAttachments,
+  updateAttachmentLocalFileUri,
 } from "../database/repositories/attachments";
 import { openDB } from "../database/db";
+
+const ATTACHMENTS_BUCKET = "attendance-attachments";
+const ATTACHMENTS_DIR = `${FileSystem.documentDirectory}attachments/`;
+const QR_BUCKET = "qr-images";
+const QR_DIR = `${FileSystem.documentDirectory}qr/`;
+
+type SyncFailure = {
+  entity: "attachments" | "qr_image";
+  phase: "push" | "pull";
+  id: string;
+  message: string;
+};
+
+function recordFailure(
+  failures: SyncFailure[],
+  failure: SyncFailure
+): void {
+  failures.push(failure);
+}
+
+function summarizeFailures(failures: SyncFailure[]): string | null {
+  if (failures.length === 0) return null;
+  const first = failures[0];
+  const prefix = `${first.entity} ${first.phase} failed (${first.id})`;
+  if (failures.length === 1) {
+    return `${prefix}: ${first.message}`;
+  }
+  return `${prefix}: ${first.message} (+${failures.length - 1} more)`;
+}
 
 function markSynced(table: string, id: string | number): void {
   openDB().runSync(`UPDATE ${table} SET synced = 1 WHERE id = ?`, [id]);
@@ -144,6 +176,285 @@ type RemoteAttachment = {
   updated_at: string;
   deleted: boolean;
 };
+
+function sanitizePathSegment(input: string): string {
+  return input.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function inferAttachmentExtension(pathOrName: string | null | undefined): string {
+  if (!pathOrName) return "jpg";
+  const matched = pathOrName.match(/\.([a-zA-Z0-9]+)(?:\?|#|$)/);
+  const ext = matched?.[1]?.toLowerCase();
+  if (!ext) return "jpg";
+  if (["jpg", "jpeg", "png", "gif", "webp", "heic", "heif"].includes(ext)) {
+    return ext;
+  }
+  return "jpg";
+}
+
+function inferAttachmentMimeType(pathOrName: string | null | undefined): string {
+  const ext = inferAttachmentExtension(pathOrName);
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "png") return "image/png";
+  if (ext === "gif") return "image/gif";
+  if (ext === "webp") return "image/webp";
+  if (ext === "heic") return "image/heic";
+  if (ext === "heif") return "image/heif";
+  return "application/octet-stream";
+}
+
+function buildAttachmentRemotePath(row: AttachmentRow): string {
+  const ext = inferAttachmentExtension(row.file_uri || row.display_name);
+  return `${sanitizePathSegment(row.user_id)}/${sanitizePathSegment(row.entry_id)}/${sanitizePathSegment(row.id)}.${ext}`;
+}
+
+async function ensureAttachmentsDirectory(): Promise<void> {
+  await FileSystem.makeDirectoryAsync(ATTACHMENTS_DIR, { intermediates: true });
+}
+
+async function ensureQRDirectory(): Promise<void> {
+  await FileSystem.makeDirectoryAsync(QR_DIR, { intermediates: true });
+}
+
+async function localFileExists(uri: string | null | undefined): Promise<boolean> {
+  if (!uri) return false;
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    return !!info.exists;
+  } catch {
+    return false;
+  }
+}
+
+async function getUploadArrayBuffer(localUri: string): Promise<ArrayBuffer> {
+  const base64 = await FileSystem.readAsStringAsync(localUri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  return decodeBase64(base64);
+}
+
+async function uploadAttachmentToStorage(
+  row: AttachmentRow,
+  remotePath: string,
+  failures: SyncFailure[]
+): Promise<boolean> {
+  try {
+    const exists = await localFileExists(row.file_uri);
+    if (!exists) {
+      const message = "Local attachment file is missing";
+      console.warn("Attachment upload skipped; local file missing", row.id);
+      recordFailure(failures, {
+        entity: "attachments",
+        phase: "push",
+        id: row.id,
+        message,
+      });
+      return false;
+    }
+
+    const mimeType = inferAttachmentMimeType(row.file_uri || row.display_name);
+    const uploadBody = await getUploadArrayBuffer(row.file_uri);
+    const { error } = await supabase.storage
+      .from(ATTACHMENTS_BUCKET)
+      .upload(remotePath, uploadBody, {
+        contentType: mimeType,
+        upsert: true,
+      });
+
+    if (error) {
+      console.warn("Attachment upload failed", row.id, error.message);
+      recordFailure(failures, {
+        entity: "attachments",
+        phase: "push",
+        id: row.id,
+        message: error.message,
+      });
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("Attachment upload crashed", row.id, error);
+    recordFailure(failures, {
+      entity: "attachments",
+      phase: "push",
+      id: row.id,
+      message: error instanceof Error ? error.message : "Unexpected upload crash",
+    });
+    return false;
+  }
+}
+
+async function deleteAttachmentFromStorage(remotePath: string): Promise<void> {
+  try {
+    const { error } = await supabase.storage
+      .from(ATTACHMENTS_BUCKET)
+      .remove([remotePath]);
+    if (error) {
+      console.warn("Attachment storage delete failed", remotePath, error.message);
+    }
+  } catch (error) {
+    console.warn("Attachment storage delete crashed", remotePath, error);
+  }
+}
+
+async function downloadAttachmentToLocal(
+  remote: RemoteAttachment,
+  fallbackLocalUri: string | null,
+  failures: SyncFailure[]
+): Promise<string | null> {
+  if (!remote.remote_path) {
+    return fallbackLocalUri;
+  }
+
+  try {
+    await ensureAttachmentsDirectory();
+    const ext = inferAttachmentExtension(remote.remote_path || remote.file_uri || remote.display_name);
+    const localUri = `${ATTACHMENTS_DIR}${sanitizePathSegment(remote.id)}.${ext}`;
+    const { data, error } = await supabase.storage
+      .from(ATTACHMENTS_BUCKET)
+      .createSignedUrl(remote.remote_path, 120);
+    if (error || !data?.signedUrl) {
+      console.warn("Attachment signed URL failed", remote.id, error?.message);
+      recordFailure(failures, {
+        entity: "attachments",
+        phase: "pull",
+        id: remote.id,
+        message: error?.message ?? "Could not create signed URL",
+      });
+      return fallbackLocalUri;
+    }
+
+    const downloaded = await FileSystem.downloadAsync(data.signedUrl, localUri);
+    if (downloaded.status >= 200 && downloaded.status < 300) {
+      return downloaded.uri;
+    }
+    console.warn("Attachment download returned non-success status", remote.id, downloaded.status);
+    recordFailure(failures, {
+      entity: "attachments",
+      phase: "pull",
+      id: remote.id,
+      message: `HTTP ${downloaded.status}`,
+    });
+    return fallbackLocalUri;
+  } catch (error) {
+    console.warn("Attachment download crashed", remote.id, error);
+    recordFailure(failures, {
+      entity: "attachments",
+      phase: "pull",
+      id: remote.id,
+      message: error instanceof Error ? error.message : "Unexpected download crash",
+    });
+    return fallbackLocalUri;
+  }
+}
+
+function inferQRExtension(pathOrName: string | null | undefined): string {
+  return inferAttachmentExtension(pathOrName);
+}
+
+function inferQRMimeType(pathOrName: string | null | undefined): string {
+  return inferAttachmentMimeType(pathOrName);
+}
+
+function buildQRRemotePath(row: QRRow): string {
+  const ext = inferQRExtension(row.local_uri || row.remote_path);
+  return `${sanitizePathSegment(row.user_id)}/qr.${ext}`;
+}
+
+async function uploadQRToStorage(row: QRRow, failures: SyncFailure[]): Promise<string | null> {
+  if (!row.local_uri) {
+    recordFailure(failures, {
+      entity: "qr_image",
+      phase: "push",
+      id: row.id,
+      message: "QR local image is missing",
+    });
+    return null;
+  }
+
+  const exists = await localFileExists(row.local_uri);
+  if (!exists) {
+    recordFailure(failures, {
+      entity: "qr_image",
+      phase: "push",
+      id: row.id,
+      message: "QR local image file is missing",
+    });
+    return null;
+  }
+
+  try {
+    const remotePath = row.remote_path || buildQRRemotePath(row);
+    const contentType = inferQRMimeType(row.local_uri);
+    const uploadBody = await getUploadArrayBuffer(row.local_uri);
+    const { error } = await supabase.storage.from(QR_BUCKET).upload(remotePath, uploadBody, {
+      contentType,
+      upsert: true,
+    });
+    if (error) {
+      recordFailure(failures, {
+        entity: "qr_image",
+        phase: "push",
+        id: row.id,
+        message: error.message,
+      });
+      return null;
+    }
+    return remotePath;
+  } catch (error) {
+    recordFailure(failures, {
+      entity: "qr_image",
+      phase: "push",
+      id: row.id,
+      message: error instanceof Error ? error.message : "Unexpected QR upload crash",
+    });
+    return null;
+  }
+}
+
+async function downloadQRToLocal(
+  row: RemoteQR,
+  failures: SyncFailure[]
+): Promise<string | null> {
+  if (!row.remote_path) return row.local_uri;
+  try {
+    await ensureQRDirectory();
+    const ext = inferQRExtension(row.remote_path || row.local_uri);
+    const localUri = `${QR_DIR}${sanitizePathSegment(row.user_id)}.${ext}`;
+    const { data, error } = await supabase.storage
+      .from(QR_BUCKET)
+      .createSignedUrl(row.remote_path, 120);
+    if (error || !data?.signedUrl) {
+      recordFailure(failures, {
+        entity: "qr_image",
+        phase: "pull",
+        id: row.id,
+        message: error?.message ?? "Could not create QR signed URL",
+      });
+      return row.local_uri;
+    }
+
+    const downloaded = await FileSystem.downloadAsync(data.signedUrl, localUri);
+    if (downloaded.status >= 200 && downloaded.status < 300) {
+      return downloaded.uri;
+    }
+    recordFailure(failures, {
+      entity: "qr_image",
+      phase: "pull",
+      id: row.id,
+      message: `HTTP ${downloaded.status}`,
+    });
+    return row.local_uri;
+  } catch (error) {
+    recordFailure(failures, {
+      entity: "qr_image",
+      phase: "pull",
+      id: row.id,
+      message: error instanceof Error ? error.message : "Unexpected QR download crash",
+    });
+    return row.local_uri;
+  }
+}
 
 async function pullAttendance(userId: string): Promise<number> {
   const { data, error } = await supabase
@@ -326,7 +637,7 @@ async function pullGoals(userId: string): Promise<number> {
   return 1;
 }
 
-async function pullQRImage(userId: string): Promise<number> {
+async function pullQRImage(userId: string, failures: SyncFailure[]): Promise<number> {
   const { data, error } = await supabase.from("qr_image").select("*").eq("user_id", userId).limit(1);
   if (error || !data || data.length === 0) return 0;
 
@@ -342,23 +653,33 @@ async function pullQRImage(userId: string): Promise<number> {
     return 0;
   }
 
+  let resolvedLocalUri = remote.local_uri;
+  if (remote.remote_path) {
+    const hasLocalFile = await localFileExists(local?.local_uri);
+    if (hasLocalFile && local?.local_uri) {
+      resolvedLocalUri = local.local_uri;
+    } else {
+      resolvedLocalUri = await downloadQRToLocal(remote, failures);
+    }
+  }
+
   if (local) {
     openDB().runSync(
       `UPDATE qr_image SET id = ?, local_uri = ?, remote_path = ?, updated_at = ?, synced = 1 WHERE user_id = ?`,
-      [remote.id, remote.local_uri, remote.remote_path, remote.updated_at, userId]
+      [remote.id, resolvedLocalUri, remote.remote_path, remote.updated_at, userId]
     );
   } else {
     openDB().runSync(
       `INSERT INTO qr_image (id, user_id, local_uri, remote_path, updated_at, synced)
        VALUES (?, ?, ?, ?, ?, 1)`,
-      [remote.id, remote.user_id, remote.local_uri, remote.remote_path, remote.updated_at]
+      [remote.id, remote.user_id, resolvedLocalUri, remote.remote_path, remote.updated_at]
     );
   }
 
   return 1;
 }
 
-async function pullAttachments(userId: string): Promise<number> {
+async function pullAttachments(userId: string, failures: SyncFailure[]): Promise<number> {
   const { data, error } = await supabase
     .from("attendance_attachments")
     .select("*")
@@ -379,6 +700,22 @@ async function pullAttachments(userId: string): Promise<number> {
       continue;
     }
 
+    let resolvedFileUri = remote.file_uri;
+    if (!remote.deleted) {
+      if (remote.remote_path) {
+        const hasLocalFile = await localFileExists(local?.file_uri);
+        if (hasLocalFile && local?.file_uri) {
+          resolvedFileUri = local.file_uri;
+        } else {
+          resolvedFileUri =
+            (await downloadAttachmentToLocal(remote, local?.file_uri ?? null, failures)) ??
+            remote.file_uri;
+        }
+      } else if (local?.file_uri) {
+        resolvedFileUri = local.file_uri;
+      }
+    }
+
     openDB().runSync(
       `INSERT OR REPLACE INTO attendance_attachments
        (id, entry_id, user_id, file_uri, remote_path, display_name, created_at, updated_at, synced, deleted)
@@ -387,7 +724,7 @@ async function pullAttachments(userId: string): Promise<number> {
         remote.id,
         remote.entry_id,
         remote.user_id,
-        remote.file_uri,
+        resolvedFileUri,
         remote.remote_path,
         remote.display_name,
         remote.created_at,
@@ -395,13 +732,17 @@ async function pullAttachments(userId: string): Promise<number> {
         remote.deleted ? 1 : 0,
       ]
     );
+
+    if (resolvedFileUri && local?.file_uri !== resolvedFileUri) {
+      updateAttachmentLocalFileUri(remote.id, resolvedFileUri);
+    }
     merged += 1;
   }
 
   return merged;
 }
 
-async function pushAttendance(userId: string): Promise<void> {
+async function pushAttendance(userId: string, failures: SyncFailure[]): Promise<void> {
   const rows = getUnsyncedAttendance(userId);
   for (const row of rows) {
     if (row.deleted === 1) {
@@ -410,7 +751,9 @@ async function pushAttendance(userId: string): Promise<void> {
         .delete()
         .eq("id", row.id)
         .eq("user_id", row.user_id);
-      if (!error) markSynced("attendance", row.id);
+      if (!error) {
+        markSynced("attendance", row.id);
+      }
       continue;
     }
 
@@ -506,27 +849,48 @@ async function pushGoals(userId: string): Promise<void> {
   }
 }
 
-async function pushQRImage(userId: string): Promise<void> {
+async function pushQRImage(userId: string, failures: SyncFailure[]): Promise<void> {
   const rows = getUnsyncedQRImages(userId);
   for (const row of rows) {
+    const remotePath = await uploadQRToStorage(row, failures);
+    if (!remotePath) {
+      continue;
+    }
+
     const { error } = await supabase.from("qr_image").upsert(
       {
         id: row.id,
         user_id: row.user_id,
         local_uri: row.local_uri,
-        remote_path: row.remote_path,
+        remote_path: remotePath,
         updated_at: row.updated_at,
       },
       { onConflict: "id" }
     );
-    if (!error) markSynced("qr_image", row.id);
+    if (!error) {
+      openDB().runSync("UPDATE qr_image SET remote_path = ? WHERE id = ?", [
+        remotePath,
+        row.id,
+      ]);
+      markSynced("qr_image", row.id);
+    } else {
+      recordFailure(failures, {
+        entity: "qr_image",
+        phase: "push",
+        id: row.id,
+        message: error.message,
+      });
+    }
   }
 }
 
-async function pushAttachments(userId: string): Promise<void> {
+async function pushAttachments(userId: string, failures: SyncFailure[]): Promise<void> {
   const rows = getUnsyncedAttachments(userId);
   for (const row of rows) {
     if (row.deleted === 1) {
+      if (row.remote_path) {
+        await deleteAttachmentFromStorage(row.remote_path);
+      }
       const { error } = await supabase
         .from("attendance_attachments")
         .delete()
@@ -536,20 +900,39 @@ async function pushAttachments(userId: string): Promise<void> {
       continue;
     }
 
+    const remotePath = row.remote_path || buildAttachmentRemotePath(row);
+    const uploaded = await uploadAttachmentToStorage(row, remotePath, failures);
+    if (!uploaded) {
+      continue;
+    }
+
     const { error } = await supabase.from("attendance_attachments").upsert(
       {
         id: row.id,
         entry_id: row.entry_id,
         user_id: row.user_id,
         file_uri: row.file_uri,
-        remote_path: row.remote_path,
+        remote_path: remotePath,
         display_name: row.display_name,
         updated_at: row.updated_at,
         deleted: row.deleted === 1,
       },
       { onConflict: "id" }
     );
-    if (!error) markSynced("attendance_attachments", row.id);
+    if (!error) {
+      openDB().runSync(
+        "UPDATE attendance_attachments SET remote_path = ? WHERE id = ?",
+        [remotePath, row.id]
+      );
+      markSynced("attendance_attachments", row.id);
+    } else {
+      recordFailure(failures, {
+        entity: "attachments",
+        phase: "push",
+        id: row.id,
+        message: error.message,
+      });
+    }
   }
 }
 
@@ -557,39 +940,50 @@ export interface SyncRunResult {
   pulled: number;
   pushed: number;
   failed: number;
+  failureSummary: string | null;
+  failureDetails: string[];
 }
 
 /** Run a full sync cycle for the given user. Safe to call repeatedly. */
 export async function runSync(userId: string): Promise<SyncRunResult> {
   let pulled = 0;
   const pendingBefore = getPendingSyncCount(userId);
+  const failures: SyncFailure[] = [];
   try {
     // Push local changes first so user edits/deletes are not overwritten by stale remote rows.
-    await pushAttendance(userId);
+    await pushAttendance(userId, failures);
     await pushBonus(userId);
     await pushTimerSessions(userId);
     await pushGoals(userId);
-    await pushQRImage(userId);
-    await pushAttachments(userId);
+    await pushQRImage(userId, failures);
+    await pushAttachments(userId, failures);
 
     pulled += await pullAttendance(userId);
     pulled += await pullBonus(userId);
     pulled += await pullTimerSessions(userId);
     pulled += await pullGoals(userId);
-    pulled += await pullQRImage(userId);
-    pulled += await pullAttachments(userId);
+    pulled += await pullQRImage(userId, failures);
+    pulled += await pullAttachments(userId, failures);
 
     const pendingAfter = getPendingSyncCount(userId);
     return {
       pulled,
       pushed: Math.max(0, pendingBefore - pendingAfter),
       failed: pendingAfter,
+      failureSummary: summarizeFailures(failures),
+      failureDetails: failures.map(
+        (f) => `${f.entity} ${f.phase} ${f.id}: ${f.message}`
+      ),
     };
   } catch {
     return {
       pulled,
       pushed: 0,
       failed: getPendingSyncCount(userId),
+      failureSummary: summarizeFailures(failures),
+      failureDetails: failures.map(
+        (f) => `${f.entity} ${f.phase} ${f.id}: ${f.message}`
+      ),
     };
   }
 }

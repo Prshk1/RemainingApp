@@ -73,13 +73,22 @@ export default function DashboardScreen() {
 
   function handleConfirmAttendanceUpdate() {
     if (pendingConfirmation) {
-      confirmAttendanceUpdate(pendingConfirmation);
-      showNotification({
-        type: "success",
-        title: "Entry Updated",
-        message: "Attendance record has been updated successfully.",
-        duration: 4000,
-      });
+      try {
+        confirmAttendanceUpdate(pendingConfirmation);
+        showNotification({
+          type: "success",
+          title: "Entry Updated",
+          message: "Attendance record has been updated successfully.",
+          duration: 4000,
+        });
+      } catch (err: any) {
+        showNotification({
+          type: "error",
+          title: "Update failed",
+          message: err?.message ?? "Could not update existing attendance entry.",
+          duration: 6000,
+        });
+      }
     }
   }
 

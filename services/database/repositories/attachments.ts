@@ -31,15 +31,64 @@ export function insertAttachment(
 }
 
 export function softDeleteAttachment(id: string): void {
-  openDB().runSync(
-    "UPDATE attendance_attachments SET deleted = 1, synced = 0, updated_at = datetime('now') WHERE id = ?",
-    [id]
-  );
+  try {
+    openDB().runSync(
+      "UPDATE attendance_attachments SET deleted = 1, synced = 0, updated_at = datetime('now') WHERE id = ?",
+      [id]
+    );
+  } catch {
+    // Backward-compat fallback for installs missing updated_at on this table.
+    openDB().runSync(
+      "UPDATE attendance_attachments SET deleted = 1, synced = 0 WHERE id = ?",
+      [id]
+    );
+  }
+}
+
+export function softDeleteAttachmentsByEntryId(entryId: string): void {
+  try {
+    openDB().runSync(
+      `UPDATE attendance_attachments
+       SET deleted = 1, synced = 0, updated_at = datetime('now')
+       WHERE entry_id = ? AND deleted = 0`,
+      [entryId]
+    );
+  } catch {
+    // Backward-compat fallback for installs missing updated_at on this table.
+    openDB().runSync(
+      `UPDATE attendance_attachments
+       SET deleted = 1, synced = 0
+       WHERE entry_id = ? AND deleted = 0`,
+      [entryId]
+    );
+  }
 }
 
 export function getUnsyncedAttachments(userId: string): AttachmentRow[] {
   return openDB().getAllSync<AttachmentRow>(
     "SELECT * FROM attendance_attachments WHERE user_id = ? AND synced = 0",
     [userId]
+  );
+}
+
+export function updateAttachmentPaths(
+  id: string,
+  fileUri: string,
+  remotePath: string | null
+): void {
+  openDB().runSync(
+    `UPDATE attendance_attachments
+     SET file_uri = ?, remote_path = ?, synced = 0, updated_at = datetime('now')
+     WHERE id = ?`,
+    [fileUri, remotePath, id]
+  );
+}
+
+export function updateAttachmentLocalFileUri(id: string, fileUri: string): void {
+  openDB().runSync(
+    `UPDATE attendance_attachments
+     SET file_uri = ?
+     WHERE id = ?`,
+    [fileUri, id]
   );
 }

@@ -53,7 +53,7 @@ interface AttendanceContextValue {
   updateEntry: (
     id: string,
     updates: Partial<
-      Pick<AttendanceEntry, "timeIn" | "timeOut" | "breakMinutes" | "hours" | "note">
+      Pick<AttendanceEntry, "timeIn" | "timeOut" | "breakMinutes" | "hours" | "note" | "isManual">
     >
   ) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
@@ -122,7 +122,7 @@ export function AttendanceProvider({
     async (
       id: string,
       updates: Partial<
-        Pick<AttendanceEntry, "timeIn" | "timeOut" | "breakMinutes" | "hours" | "note">
+        Pick<AttendanceEntry, "timeIn" | "timeOut" | "breakMinutes" | "hours" | "note" | "isManual">
       >
     ) => {
       const mapped: Parameters<typeof updateAttendance>[1] = {};
@@ -132,6 +132,7 @@ export function AttendanceProvider({
         mapped.break_minutes = updates.breakMinutes;
       if (updates.hours !== undefined) mapped.hours = updates.hours;
       if (updates.note !== undefined) mapped.note = updates.note;
+      if (updates.isManual !== undefined) mapped.is_manual = updates.isManual ? 1 : 0;
       updateAttendance(id, mapped);
       load();
       requestSync();

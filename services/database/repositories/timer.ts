@@ -35,7 +35,7 @@ export function insertTimerSession(
   row: Omit<TimerRow, "created_at" | "updated_at" | "synced">
 ): void {
   openDB().runSync(
-    `INSERT OR REPLACE INTO timer_sessions
+    `INSERT INTO timer_sessions
        (id, user_id, date, start_time, end_time, break_minutes, is_active)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [

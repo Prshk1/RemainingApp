@@ -90,7 +90,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         refreshPending();
 
         if (result.failed > 0) {
-          setLastError(`${result.failed} item(s) pending sync`);
+          setLastError(
+            result.failureSummary ?? `${result.failed} item(s) pending sync`
+          );
           scheduleRetry();
         } else {
           clearRetryTimer();

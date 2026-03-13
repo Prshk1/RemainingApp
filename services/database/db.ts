@@ -134,4 +134,25 @@ export function initDB(): void {
     `CREATE INDEX IF NOT EXISTS idx_sync_queue_entity
      ON sync_queue(entity_type, entity_id);`
   );
+
+  // Legacy repair: close duplicate active timers, keep only the most recent per user.
+  db.runSync(`
+    UPDATE timer_sessions
+    SET is_active = 0,
+        end_time = COALESCE(end_time, datetime('now')),
+        updated_at = datetime('now'),
+        synced = 0
+    WHERE is_active = 1
+      AND rowid NOT IN (
+        SELECT MAX(rowid)
+        FROM timer_sessions
+        WHERE is_active = 1
+        GROUP BY user_id
+      )
+  `);
+
+  db.execSync(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_timer_sessions_single_active
+     ON timer_sessions(user_id) WHERE is_active = 1;`
+  );
 }

@@ -17,7 +17,7 @@ The app helps users:
 - Estimate a completion date based on work-day settings
 - Log bonus or credited hours separately from attendance
 - Add notes and photo attachments to attendance entries
-- Keep working offline and sync selected records to Supabase when online
+- Keep working offline and sync records plus attachment image files to Supabase when online
 
 ## Feature Highlights
 
@@ -39,7 +39,7 @@ Each attendance record can include notes and attached photos, making it useful a
 
 ### Offline-First Data Model
 
-Core app data is stored locally in SQLite, so the app remains usable without a network connection. When connectivity is available, the sync layer reconciles attendance, bonus, timer-session, goals, QR metadata, and attachment metadata records with Supabase.
+Core app data is stored locally in SQLite, so the app remains usable without a network connection. When connectivity is available, the sync layer reconciles attendance, bonus, timer-session, goals, QR metadata, attachment metadata, and attachment image binaries with Supabase.
 
 ## Screenshots
 
@@ -98,7 +98,18 @@ Remaining currently uses a local-first architecture:
 - User session data is stored on-device with SecureStore
 - Core records are stored in SQLite
 - Attendance, bonus, timer-session, goals, QR image, sync queue, and attachment tables are initialized locally at app startup
-- Unsynced attendance, bonus, and timer-session rows can be pushed to Supabase by the background sync engine
+- Unsynced attendance, bonus, timer-session, goals, QR, and attachment rows can be pushed to Supabase by the background sync engine
+- Attachment files are stored in the private Supabase Storage bucket `attendance-attachments`
+- QR image files are stored in the private Supabase Storage bucket `qr-images`
+
+Boundary contract between attendance and timer_sessions:
+
+- `timer_sessions` is the session-state log used for active timer recovery and break lifecycle.
+- `attendance` is the canonical daily record used by dashboard totals, manual edits, journal, and attachments.
+- Timer flows write session lifecycle to `timer_sessions`, then create/update the corresponding finalized daily row in `attendance`.
+- Manual entry writes directly to `attendance` and does not create timer session rows.
+- Overwrite flows replace attendance semantics (`is_manual`, note/time fields) and clear prior journal attachments for that attendance row.
+- Only one active timer session is allowed per user (enforced locally by a partial unique index).
 
 The app is intentionally resilient offline. If sync fails, local usage is unaffected and sync can be retried later.
 
@@ -135,6 +146,8 @@ This creates all required tables, indexes, `updated_at` triggers, and RLS polici
 - `goals`
 - `qr_image`
 - `attendance_attachments`
+
+It also creates the private Supabase Storage buckets `attendance-attachments` and `qr-images`, plus object policies that restrict access to objects under each authenticated user's own folder path.
 
 ### 2) Verify table creation
 
@@ -177,6 +190,30 @@ order by tablename, policyname;
 ### 4) App configuration
 
 Ensure your app is using the correct Supabase URL and anon key in your Expo environment config, then sign in and trigger a sync from Settings.
+
+### 5) Verify storage bucket
+
+In Supabase SQL Editor, run:
+
+```sql
+select id, name, public
+from storage.buckets
+where id in ('attendance-attachments', 'qr-images')
+order by id;
+```
+
+### 6) Verify storage policies
+
+Run:
+
+```sql
+select policyname, permissive, roles, cmd
+from pg_policies
+where schemaname = 'storage'
+	and tablename = 'objects'
+	and (policyname like 'attendance_attachments_storage_%' or policyname like 'qr_images_storage_%')
+order by policyname;
+```
 
 If you previously saw edited/deleted records reappear, update to the latest app code,
 rerun `supabase/schema.sql`, then trigger `Sync Now` once to flush pending local changes.

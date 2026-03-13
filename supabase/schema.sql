@@ -232,4 +232,92 @@ CREATE POLICY attachments_owner_update ON public.attendance_attachments
 CREATE POLICY attachments_owner_delete ON public.attendance_attachments
   FOR DELETE USING (auth.uid()::text = user_id);
 
+ALTER TABLE public.attendance_attachments
+  DROP CONSTRAINT IF EXISTS attendance_attachments_entry_fk;
+
+ALTER TABLE public.attendance_attachments
+  ADD CONSTRAINT attendance_attachments_entry_fk
+  FOREIGN KEY (entry_id) REFERENCES public.attendance(id) ON DELETE CASCADE;
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('attendance-attachments', 'attendance-attachments', false)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('qr-images', 'qr-images', false)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS attendance_attachments_storage_select ON storage.objects;
+DROP POLICY IF EXISTS attendance_attachments_storage_insert ON storage.objects;
+DROP POLICY IF EXISTS attendance_attachments_storage_update ON storage.objects;
+DROP POLICY IF EXISTS attendance_attachments_storage_delete ON storage.objects;
+DROP POLICY IF EXISTS qr_images_storage_select ON storage.objects;
+DROP POLICY IF EXISTS qr_images_storage_insert ON storage.objects;
+DROP POLICY IF EXISTS qr_images_storage_update ON storage.objects;
+DROP POLICY IF EXISTS qr_images_storage_delete ON storage.objects;
+
+CREATE POLICY attendance_attachments_storage_select ON storage.objects
+  FOR SELECT
+  USING (
+    bucket_id = 'attendance-attachments'
+    AND split_part(name, '/', 1) = auth.uid()::text
+  );
+
+CREATE POLICY attendance_attachments_storage_insert ON storage.objects
+  FOR INSERT
+  WITH CHECK (
+    bucket_id = 'attendance-attachments'
+    AND split_part(name, '/', 1) = auth.uid()::text
+  );
+
+CREATE POLICY attendance_attachments_storage_update ON storage.objects
+  FOR UPDATE
+  USING (
+    bucket_id = 'attendance-attachments'
+    AND split_part(name, '/', 1) = auth.uid()::text
+  )
+  WITH CHECK (
+    bucket_id = 'attendance-attachments'
+    AND split_part(name, '/', 1) = auth.uid()::text
+  );
+
+CREATE POLICY attendance_attachments_storage_delete ON storage.objects
+  FOR DELETE
+  USING (
+    bucket_id = 'attendance-attachments'
+    AND split_part(name, '/', 1) = auth.uid()::text
+  );
+
+CREATE POLICY qr_images_storage_select ON storage.objects
+  FOR SELECT
+  USING (
+    bucket_id = 'qr-images'
+    AND split_part(name, '/', 1) = auth.uid()::text
+  );
+
+CREATE POLICY qr_images_storage_insert ON storage.objects
+  FOR INSERT
+  WITH CHECK (
+    bucket_id = 'qr-images'
+    AND split_part(name, '/', 1) = auth.uid()::text
+  );
+
+CREATE POLICY qr_images_storage_update ON storage.objects
+  FOR UPDATE
+  USING (
+    bucket_id = 'qr-images'
+    AND split_part(name, '/', 1) = auth.uid()::text
+  )
+  WITH CHECK (
+    bucket_id = 'qr-images'
+    AND split_part(name, '/', 1) = auth.uid()::text
+  );
+
+CREATE POLICY qr_images_storage_delete ON storage.objects
+  FOR DELETE
+  USING (
+    bucket_id = 'qr-images'
+    AND split_part(name, '/', 1) = auth.uid()::text
+  );
+
 COMMIT;
