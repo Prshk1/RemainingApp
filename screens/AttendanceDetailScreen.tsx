@@ -14,13 +14,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as MediaLibrary from "expo-media-library";
-import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import Header from "../components/Header";
 import ConfirmModal from "../components/ConfirmModal";
 import { useTheme } from "../context/ThemeContext";
 import { useAttendance } from "../context/AttendanceContext";
 import { useAppSettings } from "../context/AppSettingsContext";
+import { prepareShareableImage } from "../utils/prepareShareableImage";
 import {
   getAttachmentsByEntryId,
   AttachmentRow,
@@ -77,40 +77,30 @@ export default function AttendanceDetailScreen() {
   }
 
   async function savePhoto(uri: string) {
-    const info = await FileSystem.getInfoAsync(uri);
-    if (!info.exists) {
-      showToast("Photo no longer available.", false);
-      return;
-    }
     try {
+      const prepared = await prepareShareableImage(uri);
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== "granted") {
         showToast("Allow photo library access to save photos.", false);
         return;
       }
-      await MediaLibrary.saveToLibraryAsync(uri);
+      await MediaLibrary.saveToLibraryAsync(prepared.uri);
       showToast("Saved to gallery ✓");
-    } catch {
+    } catch (err) {
+      console.warn("savePhoto failed", err);
       showToast("Could not save photo.", false);
     }
   }
 
   async function sharePhoto(uri: string) {
-    const info = await FileSystem.getInfoAsync(uri);
-    if (!info.exists) {
-      showToast("Photo no longer available.", false);
-      return;
-    }
     try {
       const available = await Sharing.isAvailableAsync();
       if (!available) {
         showToast("Sharing is not available on this device.", false);
         return;
       }
-      // Determine MIME type from file extension
-      const ext = uri.split(".").pop()?.toLowerCase() ?? "jpg";
-      const mimeType = ext === "png" ? "image/png" : ext === "gif" ? "image/gif" : "image/jpeg";
-      await Sharing.shareAsync(uri, { mimeType });
+      const prepared = await prepareShareableImage(uri);
+      await Sharing.shareAsync(prepared.uri, { mimeType: prepared.mimeType });
     } catch {
       // User cancelled share sheet — no-op
     }

@@ -140,10 +140,6 @@ export default function JournalScreen() {
       const destUri = `${destDir}${id}.${ext}`;
       await FileSystem.copyAsync({ from: asset.uri, to: destUri });
 
-      // Verify the file actually exists after copy before writing to DB
-      const info = await FileSystem.getInfoAsync(destUri);
-      if (!info.exists) throw new Error("File copy failed — destination not found.");
-
       const newAttachment: StagedAttachment = {
         id,
         file_uri: destUri,
