@@ -12,8 +12,10 @@ import ConfirmModal from "../components/ConfirmModal";
 import AnimatedScreenContainer from "../components/AnimatedScreenContainer";
 import { TAB_BAR_HEIGHT } from "../components/CustomTabBar";
 import { useTheme } from "../context/ThemeContext";
-import { useAttendance } from "../context/AttendanceContext";
+import { useAttendance, AttendanceEntry } from "../context/AttendanceContext";
 import { useAppSettings } from "../context/AppSettingsContext";
+import { getAttachmentsByEntryId } from "../services/database/repositories/attachments";
+import { getAttendanceById } from "../services/database/repositories/attendance";
 import { RootStackParamList } from "../App";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -37,6 +39,20 @@ export default function AttendanceScreen() {
     } else {
       setDeleteTarget(id);
     }
+  }
+
+  function handleSwipeEdit(entry: AttendanceEntry) {
+    const persisted = getAttendanceById(entry.id);
+    const noteValue = persisted?.note ?? entry.note;
+    const hasNote = Boolean(noteValue && noteValue.trim().length > 0);
+    if (hasNote) {
+      navigation.navigate("AttendanceDetail", { entryId: entry.id });
+      return;
+    }
+
+    // Keep swipe behavior aligned with AttendanceDetail's journal CTA semantics.
+    const hasAttachments = getAttachmentsByEntryId(entry.id).length > 0;
+    navigation.navigate(hasAttachments ? "AttendanceDetail" : "Journal", { entryId: entry.id });
   }
 
   return (
@@ -70,7 +86,7 @@ export default function AttendanceScreen() {
         }
         renderItem={({ item }) => (
           <SwipeableRow
-            onEdit={() => navigation.navigate("AttendanceDetail", { entryId: item.id })}
+            onEdit={() => handleSwipeEdit(item)}
             onDelete={() => requestDelete(item.id)}
           >
             <AttendanceCard

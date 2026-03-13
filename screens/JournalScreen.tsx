@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, KeyboardAvoidingView, Platform, Image,
@@ -29,6 +29,13 @@ type RoutePropType = RouteProp<RootStackParamList, "Journal">;
 
 const MAX_ATTACHMENTS = 3;
 
+type StagedAttachment = {
+  id: string;
+  file_uri: string;
+  display_name: string | null;
+  isPersisted: boolean;
+};
+
 export default function JournalScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
@@ -40,17 +47,36 @@ export default function JournalScreen() {
   const entry = entries.find((e) => e.id === route.params.entryId);
 
   const [note, setNote] = useState(entry?.note ?? "");
-  const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
+  const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
+  const [removedPersistedIds, setRemovedPersistedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
+  const committedRef = useRef(false);
 
   // Load existing attachments for this entry
   useEffect(() => {
     if (entry) {
-      setAttachments(getAttachmentsByEntryId(entry.id));
+      const existing = getAttachmentsByEntryId(entry.id).map((att) => ({
+        id: att.id,
+        file_uri: att.file_uri,
+        display_name: att.display_name,
+        isPersisted: true,
+      }));
+      setAttachments(existing);
+      setRemovedPersistedIds([]);
     }
   }, [entry?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (committedRef.current) return;
+      const stagedOnly = attachments.filter((att) => !att.isPersisted);
+      stagedOnly.forEach((att) => {
+        FileSystem.deleteAsync(att.file_uri, { idempotent: true }).catch(() => {});
+      });
+    };
+  }, [attachments]);
 
   async function pickImage() {
     if (attachments.length >= MAX_ATTACHMENTS) {
@@ -118,17 +144,13 @@ export default function JournalScreen() {
       const info = await FileSystem.getInfoAsync(destUri);
       if (!info.exists) throw new Error("File copy failed — destination not found.");
 
-      const newAttachment: Omit<AttachmentRow, "created_at" | "synced" | "deleted"> = {
+      const newAttachment: StagedAttachment = {
         id,
-        entry_id: entry.id,
-        user_id: user.id,
         file_uri: destUri,
-        remote_path: null,
         display_name: asset.fileName ?? null,
+        isPersisted: false,
       };
-      insertAttachment(newAttachment);
-      // Refresh from DB to confirm insertion, then update local state
-      setAttachments(getAttachmentsByEntryId(entry.id));
+      setAttachments((prev) => [...prev, newAttachment]);
     } catch (err: any) {
       showNotification({
         type: "error",
@@ -145,9 +167,27 @@ export default function JournalScreen() {
 
   async function handleSave() {
     if (!entry) return;
+    if (!user) return;
     setSaving(true);
     try {
+      for (const id of removedPersistedIds) {
+        softDeleteAttachment(id);
+      }
+
+      const stagedAdds = attachments.filter((att) => !att.isPersisted);
+      stagedAdds.forEach((att) => {
+        insertAttachment({
+          id: att.id,
+          entry_id: entry.id,
+          user_id: user.id,
+          file_uri: att.file_uri,
+          remote_path: null,
+          display_name: att.display_name,
+        });
+      });
+
       await updateEntry(entry.id, { note: note.trim() || null });
+      committedRef.current = true;
       navigation.goBack();
     } finally {
       setSaving(false);
@@ -261,8 +301,16 @@ export default function JournalScreen() {
           destructive
           onConfirm={() => {
             if (removeTarget) {
-              softDeleteAttachment(removeTarget);
-              setAttachments((prev) => prev.filter((a) => a.id !== removeTarget));
+              setAttachments((prev) => {
+                const target = prev.find((a) => a.id === removeTarget);
+                if (!target) return prev;
+                if (target.isPersisted) {
+                  setRemovedPersistedIds((ids) => (ids.includes(removeTarget) ? ids : [...ids, removeTarget]));
+                } else {
+                  FileSystem.deleteAsync(target.file_uri, { idempotent: true }).catch(() => {});
+                }
+                return prev.filter((a) => a.id !== removeTarget);
+              });
             }
             setRemoveTarget(null);
           }}
