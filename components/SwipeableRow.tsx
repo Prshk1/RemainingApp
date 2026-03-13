@@ -114,12 +114,19 @@ export default function SwipeableRow({ children, onEdit, onDelete }: SwipeableRo
     extrapolate: "clamp",
   });
 
+  const leftBgOpacity = leftAction ? leftOpacity : 0;
+  const rightBgOpacity = rightAction ? rightOpacity : 0;
+
   return (
     <View style={styles.container}>
       {/* Seamless color fill visible behind card rounded corners as row slides */}
-      <View style={styles.bgFill}>
-        <View style={{ flex: 1, backgroundColor: leftAction ? leftColor : "transparent" }} />
-        <View style={{ flex: 1, backgroundColor: rightAction ? rightColor : "transparent" }} />
+      <View style={[styles.bgFill, { backgroundColor: colors.card }]}>
+        <Animated.View
+          style={[styles.bgHalf, { backgroundColor: leftColor, opacity: leftBgOpacity }]}
+        />
+        <Animated.View
+          style={[styles.bgHalf, { backgroundColor: rightColor, opacity: rightBgOpacity }]}
+        />
       </View>
 
       {/* LEFT action button (revealed when row slides right) */}
@@ -217,6 +224,9 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     flexDirection: "row",
+  },
+  bgHalf: {
+    flex: 1,
   },
 });
 
