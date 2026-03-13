@@ -2,6 +2,7 @@
   "expo": {
     "name": "Remaining",
     "slug": "RemainingApp",
+    "scheme": "remaining",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/RemainingLogo-Foreground.png",

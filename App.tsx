@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import * as Linking from "expo-linking";
 
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -18,6 +19,8 @@ import { getGoals } from "./services/database/repositories/goals";
 
 import LoginScreen from "./screens/LoginScreen";
 import SignupScreen from "./screens/SignupScreen";
+import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
+import ResetPasswordScreen from "./screens/ResetPasswordScreen";
 import OnboardingScreen from "./screens/OnboardingScreen";
 import SetGoalsScreen from "./screens/SetGoalsScreen";
 import BottomTabs from "./navigation/BottomTabs";
@@ -26,6 +29,7 @@ import AddBonusScreen from "./screens/AddBonusScreen";
 import AttendanceDetailScreen from "./screens/AttendanceDetailScreen";
 import JournalScreen from "./screens/JournalScreen";
 import AboutScreen from "./screens/AboutScreen";
+import ProfileScreen from "./screens/ProfileScreen";
 
 // Initialise SQLite at module load — synchronous, no async needed
 initDB();
@@ -34,6 +38,8 @@ export type RootStackParamList = {
   // Auth
   Login: undefined;
   Signup: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: undefined;
   // Setup
   Onboarding: undefined;
   SetGoals: undefined;
@@ -45,9 +51,23 @@ export type RootStackParamList = {
   AttendanceDetail: { entryId: string };
   Journal: { entryId: string };
   About: undefined;
+  Profile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const linking = {
+  prefixes: [Linking.createURL("/"), "remaining://"],
+  config: {
+    screens: {
+      ResetPassword: "reset-password",
+      Login: "login",
+      Signup: "signup",
+      ForgotPassword: "forgot-password",
+      MainTabs: "app",
+      Profile: "profile",
+    },
+  },
+};
 
 /** Loading splash while auth state resolves */
 function LoadingScreen() {
@@ -83,6 +103,8 @@ function AppNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       </Stack.Navigator>
     );
   }
@@ -126,6 +148,16 @@ function AppNavigator() {
                   component={AboutScreen}
                   options={{ presentation: "card" }}
                 />
+                <Stack.Screen
+                  name="Profile"
+                  component={ProfileScreen}
+                  options={{ presentation: "card" }}
+                />
+                <Stack.Screen
+                  name="ResetPassword"
+                  component={ResetPasswordScreen}
+                  options={{ presentation: "card" }}
+                />
               </Stack.Navigator>
             </BonusProvider>
           </TimerProvider>
@@ -141,7 +173,7 @@ export default function App() {
       <ThemeProvider>
         <NotificationProvider>
           <AuthProvider>
-            <NavigationContainer>
+            <NavigationContainer linking={linking}>
               <AppNavigator />
             </NavigationContainer>
             <NotificationStack />

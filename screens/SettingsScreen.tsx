@@ -292,6 +292,11 @@ export default function SettingsScreen() {
         {/* ── ACCOUNT ─────────────────────────────────────── */}
         <Text style={[styles.group, { color: colors.textSecondary }]}>ACCOUNT</Text>
         <SettingsRow
+          label="Profile"
+          right={<Ionicons name="chevron-forward" size={18} color={colors.textMuted} />}
+          onPress={() => navigation.navigate("Profile")}
+        />
+        <SettingsRow
           label="Sign Out"
           labelStyle={{ color: colors.red }}
           right={<Ionicons name="log-out-outline" size={20} color={colors.red} />}

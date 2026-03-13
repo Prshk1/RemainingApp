@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -68,9 +69,11 @@ export default function LoginScreen({ navigation }: Props) {
       >
         {/* Logo mark */}
         <View style={styles.logoWrap}>
-          <View style={styles.logoCircle}>
-            <Ionicons name="time" size={40} color={colors.primary} />
-          </View>
+          <Image
+            source={require("../assets/Remaining Logo.png")}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
 
         <Text style={styles.title}>Welcome Back</Text>
@@ -97,14 +100,24 @@ export default function LoginScreen({ navigation }: Props) {
         <View style={styles.inputWrap}>
           <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, styles.passwordInput]}
             placeholder="••••••••"
             placeholderTextColor={colors.textMuted}
             secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="password"
+            textContentType="password"
             value={password}
             onChangeText={setPassword}
+            returnKeyType="done"
+            onSubmitEditing={handleLogin}
           />
-          <TouchableOpacity onPress={() => setShowPassword((p) => !p)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowPassword((p) => !p)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons
               name={showPassword ? "eye-off-outline" : "eye-outline"}
               size={18}
@@ -112,6 +125,14 @@ export default function LoginScreen({ navigation }: Props) {
             />
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={styles.forgotWrap}
+          onPress={() => navigation.navigate("ForgotPassword")}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.forgotLink}>Forgot password?</Text>
+        </TouchableOpacity>
 
         {/* Sign In Button */}
         <TouchableOpacity
@@ -161,11 +182,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"], insets: { top
       paddingBottom: insets.bottom + 24,
     },
     logoWrap: { alignItems: "center", marginBottom: 32 },
-    logoCircle: {
-      width: 80, height: 80, borderRadius: 40,
-      backgroundColor: colors.primaryDim,
-      justifyContent: "center", alignItems: "center",
-    },
+    logoImage: { width: 100, height: 100 },
     title: { color: colors.text, fontSize: 28, fontWeight: "800", textAlign: "center", marginBottom: 8 },
     subtitle: { color: colors.textSecondary, fontSize: 15, textAlign: "center", lineHeight: 22, marginBottom: 36 },
     label: { color: colors.text, fontSize: 14, fontWeight: "600", marginBottom: 8, marginTop: 16 },
@@ -177,6 +194,10 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"], insets: { top
     },
     inputIcon: { marginRight: 10 },
     input: { flex: 1, color: colors.text, fontSize: 16 },
+    passwordInput: { letterSpacing: 0.4 },
+    eyeButton: { paddingLeft: 10, height: 30, justifyContent: "center" },
+    forgotWrap: { alignSelf: "flex-end", marginTop: 10 },
+    forgotLink: { color: colors.primary, fontSize: 13, fontWeight: "600" },
     submitBtn: {
       backgroundColor: colors.primary, borderRadius: 14,
       height: 54, justifyContent: "center", alignItems: "center",

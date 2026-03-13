@@ -33,6 +33,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const styles = makeStyles(colors, insets);
@@ -139,14 +140,22 @@ export default function SignupScreen({ navigation }: Props) {
         <View style={styles.inputWrap}>
           <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, styles.passwordInput]}
             placeholder="Min. 8 characters"
             placeholderTextColor={colors.textMuted}
             secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="new-password"
+            textContentType="newPassword"
             value={password}
             onChangeText={setPassword}
           />
-          <TouchableOpacity onPress={() => setShowPassword((p) => !p)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowPassword((p) => !p)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons
               name={showPassword ? "eye-off-outline" : "eye-outline"}
               size={18}
@@ -160,13 +169,30 @@ export default function SignupScreen({ navigation }: Props) {
         <View style={styles.inputWrap}>
           <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, styles.passwordInput]}
             placeholder="Repeat password"
             placeholderTextColor={colors.textMuted}
-            secureTextEntry={!showPassword}
+            secureTextEntry={!showConfirmPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="new-password"
+            textContentType="newPassword"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
+            returnKeyType="done"
+            onSubmitEditing={handleSignUp}
           />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowConfirmPassword((p) => !p)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+              size={18}
+              color={colors.textMuted}
+            />
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -213,6 +239,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"], insets: { top
     },
     inputIcon: { marginRight: 10 },
     input: { flex: 1, color: colors.text, fontSize: 16 },
+    passwordInput: { letterSpacing: 0.4 },
+    eyeButton: { paddingLeft: 10, height: 30, justifyContent: "center" },
     submitBtn: {
       backgroundColor: colors.primary, borderRadius: 14,
       height: 54, justifyContent: "center", alignItems: "center",

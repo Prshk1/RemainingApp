@@ -21,6 +21,7 @@
     "expo-file-system": "~19.0.21",
     "expo-image-manipulator": "^55.0.10",
     "expo-image-picker": "~17.0.10",
+    "expo-linking": "^55.0.7",
     "expo-media-library": "~18.2.1",
     "expo-secure-store": "~15.0.8",
     "expo-sharing": "~14.0.8",

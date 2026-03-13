@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 import { supabase } from "../services/supabase/client";
 
 const CACHED_USER_KEY = "cached_auth_user_v1";
+const PASSWORD_RESET_REDIRECT = "https://remaining-auth.netlify.app/";
 
 // ── Local types ───────────────────────────────────────────────────────────────
 export interface LocalUser {
@@ -28,6 +29,12 @@ interface AuthContextValue {
     password: string,
     fullName: string
   ) => Promise<{ error: string | null }>;
+  requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  updateFullName: (fullName: string) => Promise<{ error: string | null }>;
+  updateEmail: (
+    email: string
+  ) => Promise<{ error: string | null; pendingConfirmation: boolean }>;
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -87,6 +94,10 @@ const AuthContext = createContext<AuthContextValue>({
   isLoading: true,
   signInWithEmail: async () => ({ error: null }),
   signUpWithEmail: async () => ({ error: null }),
+  requestPasswordReset: async () => ({ error: null }),
+  updateFullName: async () => ({ error: null }),
+  updateEmail: async () => ({ error: null, pendingConfirmation: false }),
+  updatePassword: async () => ({ error: null }),
   signOut: async () => {},
 });
 
@@ -154,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const normalizedEmail = email.trim().toLowerCase();
     const name = fullName.trim();
 
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password,
       options: {
@@ -166,10 +177,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (error) {
       return { error: error.message };
-    }
-
-    if (!data.session) {
-      return { error: "Sign up succeeded. Please verify your email before signing in." };
     }
 
     return { error: null };
@@ -190,6 +197,94 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null };
   };
 
+  const requestPasswordReset = async (email: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: PASSWORD_RESET_REDIRECT,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { error: null };
+  };
+
+  const updateFullName = async (fullName: string) => {
+    if (!user) {
+      return { error: "No user session found." };
+    }
+
+    const name = fullName.trim();
+    if (!name) {
+      return { error: "Name cannot be empty." };
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      data: {
+        full_name: name,
+      },
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    const nextUser = data.user ? toLocalUser(data.user) : { ...user, fullName: name };
+    setUser(nextUser);
+    await saveCachedUser(nextUser);
+
+    return { error: null };
+  };
+
+  const updateEmail = async (email: string) => {
+    if (!user) {
+      return { error: "No user session found.", pendingConfirmation: false };
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      return { error: "Email cannot be empty.", pendingConfirmation: false };
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      email: normalizedEmail,
+    });
+
+    if (error) {
+      return { error: error.message, pendingConfirmation: false };
+    }
+
+    const updated = data.user;
+    const nextUser = updated ? toLocalUser(updated) : user;
+    const pendingConfirmation =
+      !!updated &&
+      (updated.email !== normalizedEmail ||
+        ((updated as unknown as { new_email?: string }).new_email ?? "") === normalizedEmail);
+
+    setUser(nextUser);
+    await saveCachedUser(nextUser);
+
+    return { error: null, pendingConfirmation };
+  };
+
+  const updatePassword = async (password: string) => {
+    if (password.length < 8) {
+      return { error: "Password must be at least 8 characters." };
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { error: null };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     await clearCachedUser();
@@ -199,7 +294,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user, isLoading, signInWithEmail, signUpWithEmail, signOut }}
+      value={{
+        session,
+        user,
+        isLoading,
+        signInWithEmail,
+        signUpWithEmail,
+        requestPasswordReset,
+        updateFullName,
+        updateEmail,
+        updatePassword,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>
