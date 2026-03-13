@@ -26,6 +26,12 @@ type RoutePropType = RouteProp<RootStackParamList, "AddBonus">;
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
 
+function formatDurationLabel(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  if (!m) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
 /** Convert decimal hours to "HH:MM" (with 15-min rounding for duration picker). */
 function decimalToHHMM(dec: number): string {
   const h = Math.floor(dec);
@@ -158,11 +164,7 @@ export default function AddBonusScreen() {
             activeOpacity={0.7}
           >
             <Text style={[styles.pickerValue, { color: colors.text }]}>
-              {(() => {
-                const [h, m] = duration.split(":").map(Number);
-                const dec = parseFloat((h + m / 60).toFixed(2));
-                return m === 0 ? `${h}h (${dec} hrs)` : `${h}h ${m}m (${dec} hrs)`;
-              })()}
+              {formatDurationLabel(duration)}
             </Text>
             <Ionicons name="hourglass-outline" size={18} color={colors.primary} />
           </TouchableOpacity>

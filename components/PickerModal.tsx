@@ -4,7 +4,7 @@
  *
  *   "date"     — Calendar-style month/year navigation + day grid.
  *   "time"     — Hour and minute scroll columns; respects 12h/24h setting.
- *   "duration" — Hour (0-23) and minute (0, 15, 30, 45) scroll columns.
+ *   "duration" — Hour (0-999) and minute (0, 15, 30, 45) scroll columns.
  *
  * Usage
  * -----
@@ -36,7 +36,7 @@
  * All values emitted from onConfirm are already normalized:
  *   date     → "YYYY-MM-DD"
  *   time     → "HH:MM"  (24-h)
- *   duration → "HH:MM"  (HH 0-23, MM 0|15|30|45)
+ *   duration → "HH:MM"  (HH 0-999, MM 0|15|30|45)
  */
 import React, { useEffect, useState } from "react";
 import {
@@ -244,19 +244,27 @@ const dp = StyleSheet.create({
 const ITEM_H = 44;
 
 function ScrollColumn({
-  items, selectedIndex, onSelect, colors, width,
+  items, selectedIndex, onSelect, colors, width, loop,
 }: {
   items: string[];
   selectedIndex: number;
   onSelect: (idx: number) => void;
   colors: ReturnType<typeof useTheme>["colors"];
   width?: number;
+  loop?: boolean;
 }) {
   const scrollRef = React.useRef<ScrollView>(null);
+  const loopCount = loop ? 5 : 1;
+  const midBlock = Math.floor(loopCount / 2);
+
+  const loopedItems = loop
+    ? Array.from({ length: items.length * loopCount }, (_, i) => items[i % items.length])
+    : items;
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_H, animated: false });
-  }, [selectedIndex]);
+    const targetIndex = loop ? items.length * midBlock + selectedIndex : selectedIndex;
+    scrollRef.current?.scrollTo({ y: targetIndex * ITEM_H, animated: false });
+  }, [selectedIndex, loop, items.length]);
 
   return (
     <View style={[sc.wrap, width ? { width } : { flex: 1 }]}>
@@ -266,20 +274,33 @@ function ScrollColumn({
         snapToInterval={ITEM_H}
         decelerationRate="fast"
         onMomentumScrollEnd={(e) => {
-          const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
-          onSelect(Math.min(Math.max(idx, 0), items.length - 1));
+          const rawIdx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
+          if (loop) {
+            const actualIdx = ((rawIdx % items.length) + items.length) % items.length;
+            onSelect(actualIdx);
+            const lowerBound = items.length;
+            const upperBound = items.length * (loopCount - 1);
+            if (rawIdx < lowerBound || rawIdx >= upperBound) {
+              const recenterIdx = items.length * midBlock + actualIdx;
+              scrollRef.current?.scrollTo({ y: recenterIdx * ITEM_H, animated: false });
+            }
+            return;
+          }
+          onSelect(Math.min(Math.max(rawIdx, 0), items.length - 1));
         }}
       >
-        <View style={{ height: ITEM_H }} />
-        {items.map((item, idx) => {
-          const isSelected = idx === selectedIndex;
+        <View style={{ height: ITEM_H * 2 }} />
+        {loopedItems.map((item, idx) => {
+          const actualIdx = loop ? idx % items.length : idx;
+          const isSelected = actualIdx === selectedIndex;
           return (
             <TouchableOpacity
-              key={idx}
+              key={`${idx}-${item}`}
               style={[sc.item, isSelected && { backgroundColor: colors.primaryDim, borderRadius: 10 }]}
               onPress={() => {
-                onSelect(idx);
-                scrollRef.current?.scrollTo({ y: idx * ITEM_H, animated: true });
+                onSelect(actualIdx);
+                const targetIndex = loop ? items.length * midBlock + actualIdx : idx;
+                scrollRef.current?.scrollTo({ y: targetIndex * ITEM_H, animated: true });
               }}
               activeOpacity={0.7}
             >
@@ -289,7 +310,7 @@ function ScrollColumn({
             </TouchableOpacity>
           );
         })}
-        <View style={{ height: ITEM_H }} />
+        <View style={{ height: ITEM_H * 2 }} />
       </ScrollView>
       {/* Selection highlight overlay */}
       <View style={[sc.highlight, { borderColor: colors.border, pointerEvents: "none" }]} />
@@ -365,6 +386,7 @@ function TimePicker({
               selectedIndex={hour24}
               onSelect={setHour24}
               colors={colors}
+              loop
             />
             <Text style={[tp.colon, { color: colors.textSecondary }]}>:</Text>
             <ScrollColumn
@@ -372,6 +394,7 @@ function TimePicker({
               selectedIndex={minute}
               onSelect={setMinute}
               colors={colors}
+              loop
             />
           </>
         ) : (
@@ -381,6 +404,7 @@ function TimePicker({
               selectedIndex={hour12 - 1}
               onSelect={(i) => setHour12(i + 1)}
               colors={colors}
+              loop
             />
             <Text style={[tp.colon, { color: colors.textSecondary }]}>:</Text>
             <ScrollColumn
@@ -388,6 +412,7 @@ function TimePicker({
               selectedIndex={minute}
               onSelect={setMinute}
               colors={colors}
+              loop
             />
             <ScrollColumn
               items={ampmItems}
@@ -430,11 +455,12 @@ function DurationPicker({
   const parsed  = parseHM(value);
   const MINS    = [0, 15, 30, 45];
   const initMin = MINS.indexOf(parsed.minute) >= 0 ? MINS.indexOf(parsed.minute) : 0;
+  const MAX_HOURS = 999;
 
-  const [hour, setHour]       = useState(Math.min(parsed.hour, 23));
+  const [hour, setHour]       = useState(Math.min(parsed.hour, MAX_HOURS));
   const [minIdx, setMinIdx]   = useState(initMin);
 
-  const hourItems = Array.from({ length: 24 }, (_, i) => `${i}h`);
+  const hourItems = Array.from({ length: MAX_HOURS + 1 }, (_, i) => `${i}h`);
   const minItems  = MINS.map((m) => `${m}m`);
 
   function confirm() {

@@ -18,7 +18,6 @@ import {
   GestureResponderEvent,
   PanResponderGestureState,
   Text,
-  TouchableOpacity,
   View,
   StyleSheet,
 } from "react-native";
@@ -62,14 +61,12 @@ export default function SwipeableRow({ children, onEdit, onDelete }: SwipeableRo
     lastX.current = toValue;
   }
 
-  function openRight() { if (leftAction)  snap(rightOpen); }
-  function openLeft()  { if (rightAction) snap(leftOpen); }
   function close()     { snap(0); }
 
   const panResponder = useRef(
     require("react-native").PanResponder.create({
       // Claim the touch immediately when a side is already open (enables tap-to-close)
-      onStartShouldSetPanResponder: () => lastX.current !== 0,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_: GestureResponderEvent, gs: PanResponderGestureState) =>
         Math.abs(gs.dx) > 6 && Math.abs(gs.dx) > Math.abs(gs.dy),
       onPanResponderGrant: () => {
@@ -91,19 +88,31 @@ export default function SwipeableRow({ children, onEdit, onDelete }: SwipeableRo
       onPanResponderRelease: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
         translateX.flattenOffset();
         const pos = currentX.current;
-        // Tap while open (minimal movement) → close the row
-        if (Math.abs(pos - lastX.current) < 5 && lastX.current !== 0) {
+        if (pos > rightOpen / 2 && leftAction) {
           close();
-        } else if (pos > rightOpen / 2 && leftAction) {
-          openRight();
-        } else if (pos < leftOpen / 2 && rightAction) {
-          openLeft();
-        } else {
-          close();
+          setTimeout(leftAction, 120);
+          return;
         }
+        if (pos < leftOpen / 2 && rightAction) {
+          close();
+          setTimeout(rightAction, 120);
+          return;
+        }
+        close();
       },
     })
   ).current;
+
+  const leftOpacity = translateX.interpolate({
+    inputRange: [0, ACTION_WIDTH * 0.2],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+  const rightOpacity = translateX.interpolate({
+    inputRange: [-ACTION_WIDTH * 0.2, 0],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
 
   return (
     <View style={styles.container}>
@@ -115,30 +124,28 @@ export default function SwipeableRow({ children, onEdit, onDelete }: SwipeableRo
 
       {/* LEFT action button (revealed when row slides right) */}
       {leftAction && (
-        <View style={[styles.leftAction, { width: ACTION_WIDTH, backgroundColor: leftColor }]}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => { close(); setTimeout(leftAction, 200); }}
-            activeOpacity={0.85}
-          >
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.leftAction, { width: ACTION_WIDTH, backgroundColor: leftColor, opacity: leftOpacity }]}
+        >
+          <View style={styles.actionBtn}>
             <Ionicons name={leftIcon} size={24} color="#fff" />
             <Text style={styles.actionLabel}>{leftIcon === "create-outline" ? "Edit" : "Delete"}</Text>
-          </TouchableOpacity>
-        </View>
+          </View>
+        </Animated.View>
       )}
 
       {/* RIGHT action button (revealed when row slides left) */}
       {rightAction && (
-        <View style={[styles.rightAction, { width: ACTION_WIDTH, backgroundColor: rightColor }]}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => { close(); setTimeout(rightAction, 100); }}
-            activeOpacity={0.85}
-          >
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.rightAction, { width: ACTION_WIDTH, backgroundColor: rightColor, opacity: rightOpacity }]}
+        >
+          <View style={styles.actionBtn}>
             <Ionicons name={rightIcon} size={24} color="#fff" />
             <Text style={styles.actionLabel}>{rightIcon === "create-outline" ? "Edit" : "Delete"}</Text>
-          </TouchableOpacity>
-        </View>
+          </View>
+        </Animated.View>
       )}
 
       {/* Row content — slides with gesture */}

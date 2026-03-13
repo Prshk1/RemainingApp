@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";import Header from "../components/Header";import { useTheme } from "../context/ThemeContext";
 
-const APP_VERSION = "1.0.0";
-const BUILD_NUMBER = "1";
+const APP_VERSION = "1.0.1";
+const BUILD_NUMBER = "2";
 
 interface InfoRowProps {
   label: string;
@@ -85,8 +85,9 @@ export default function AboutScreen() {
           <View style={[styles.privacyRow, { backgroundColor: colors.card }]}>
             <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} style={{ marginRight: 12, marginTop: 2 }} />
             <Text style={[styles.privacyText, { color: colors.textSecondary }]}>
-              All your data is stored <Text style={{ color: colors.text, fontWeight: "700" }}>locally on this device</Text>.
-              Nothing is sent to any server unless you explicitly enable cloud sync.
+              Your data is stored <Text style={{ color: colors.text, fontWeight: "700" }}>locally on this device</Text>,
+              so Remaining works offline by default. If you choose to enable online sync,
+              it will be opt-in only. We plan to add optional Supabase sync soon.
               No analytics, no tracking, no third-party data sharing.
             </Text>
           </View>
